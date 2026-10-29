@@ -1,0 +1,7 @@
+/go-remarkable-mcp
+/remarkable-go
+/.amp/
+/.env
+/.env.*
+*.test
+coverage.out

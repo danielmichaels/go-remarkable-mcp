@@ -1,0 +1,3213 @@
+{
+  "cloud": {
+    "tools": [
+      {
+        "name": "remarkable_read",
+        "description": "\n    <usecase>Read and extract text content from a reMarkable document.</usecase>\n    <instructions>\n    Extracts content from a document with pagination to preserve context window.\n\n    Content types:\n    - \"text\" (default): Full extracted text (PDF/EPUB content + annotations)\n    - \"raw\": Original PDF/EPUB text only (no annotations). Works in every\n      transport, as long as the source file is present (very large PDFs/EPUBs\n      may not be synced to the cloud).\n    - \"annotations\": Only annotations, highlights, and handwritten notes\n\n    Use pagination to read large documents without overwhelming context:\n    - Start with page=1 (default)\n    - Check \"more\" field - if true, there's more content\n    - Use \"next_page\" value to get the next page\n    - \"total_pages\" is the physical document count; \"content_pages\" is the\n      extracted-text count used by page/more/next_page\n    - \"total_pages_known\" reports whether the physical count was available.\n      Raw PDF reads count the downloaded PDF directly. If a raw EPUB archive\n      cannot be read, content still returns with total_pages=null.\n    - If older USB firmware returns only a native PDF, \"text\" returns source\n      text without annotations and \"annotations\" reports that the archive is\n      unavailable instead of trying to parse the PDF as a zip.\n\n    Use grep to search for specific content on the current page.\n\n    OCR uses Google Vision when configured, otherwise Tesseract.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - content_type: \"text\" (full), \"raw\" (PDF/EPUB only), \"annotations\" (notes only)\n    - page: Extracted-content page number (default: 1). Physical document pages\n      are reported separately as total_pages.\n    - grep: Optional regex pattern to filter content (searches current page)\n    - include_ocr: Enable handwriting OCR for annotations (default: False)\n    </parameters>\n    <examples>\n    - remarkable_read(\"Meeting Notes\")  # Get first page of text\n    - remarkable_read(\"Book.pdf\", content_type=\"raw\")  # Get raw PDF text\n    - remarkable_read(\"Notes\", content_type=\"annotations\")  # Only annotations\n    - remarkable_read(\"Report\", page=2)  # Get second page\n    - remarkable_read(\"Manual\", grep=\"installation\")  # Search for keyword\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "content_type": {
+              "default": "text",
+              "enum": [
+                "text",
+                "raw",
+                "annotations"
+              ],
+              "title": "Content Type",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_readArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_readOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Read reMarkable Document",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_browse",
+        "description": "\n    <usecase>Browse your reMarkable library or search for documents.</usecase>\n    <instructions>\n    Three modes:\n    1. Browse mode (default): List contents of a folder\n       - Use path=\"/\" for root folder\n       - Use path=\"/FolderName\" to navigate into folders\n    2. Search mode: Find documents by name\n       - Set query=\"search term\" to search across all documents\n    3. Filter by tags: Find documents with specific tags\n       - Set tags=[\"tag1\", \"tag2\"] to filter by tags\n       - Works in both browse and search modes\n\n    Results include document names, types, modification dates, and tags.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are accessible. Paths are relative to the root path.\n    </instructions>\n    <parameters>\n    - path: Folder path to browse (default: \"/\" for root)\n    - query: Search term to find documents by name (optional, triggers search mode)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_browse()  # List root folder\n    - remarkable_browse(\"/Work\")  # List Work folder\n    - remarkable_browse(query=\"meeting\")  # Search for \"meeting\"\n    - remarkable_browse(tags=[\"important\"])  # Show documents with \"important\" tag\n    - remarkable_browse(query=\"project\", tags=[\"work\"])  # Search with tag filter\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "path": {
+              "default": "/",
+              "title": "Path",
+              "type": "string"
+            },
+            "query": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Query"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "title": "remarkable_browseArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_browseOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Browse reMarkable Library",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_recent",
+        "description": "\n    <usecase>Get your most recently modified documents.</usecase>\n    <instructions>\n    Returns documents sorted by modification date (newest first).\n    Optionally includes a text preview of each document's content.\n\n    Use this to quickly find what you were working on recently.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are included.\n    </instructions>\n    <parameters>\n    - limit: Maximum documents to return (default: 10, max: 50 without preview, 10 with preview)\n    - include_preview: Include first ~200 chars of text content (default: False)\n    </parameters>\n    <examples>\n    - remarkable_recent()  # Last 10 documents\n    - remarkable_recent(limit=5, include_preview=True)  # With content preview\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "limit": {
+              "default": 10,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_preview": {
+              "default": false,
+              "title": "Include Preview",
+              "type": "boolean"
+            }
+          },
+          "title": "remarkable_recentArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_recentOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Recent reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_search",
+        "description": "\n    <usecase>Search across multiple documents and return matching content.</usecase>\n    <instructions>\n    Searches document names for the query, then optionally searches content with grep.\n    Can filter by tags to narrow results.\n    Returns summaries from multiple documents in a single call.\n\n    This is efficient for finding information across your library without\n    making many individual tool calls.\n\n    Limits:\n    - Max 5 documents per search (to keep response size manageable)\n    - Returns first page (~8000 chars) of each matching document\n    - Use grep to filter to relevant sections\n    </instructions>\n    <parameters>\n    - query: Search term for document names\n    - grep: Optional pattern to search within document content\n    - limit: Max documents to return (default: 5, max: 5)\n    - include_ocr: Enable OCR for handwritten content (default: False)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_search(\"meeting\")  # Find docs with \"meeting\" in name\n    - remarkable_search(\"journal\", grep=\"project\")  # Find \"project\" in journals\n    - remarkable_search(\"notes\", include_ocr=True)  # Search with OCR enabled\n    - remarkable_search(\"project\", tags=[\"work\"])  # Find work-tagged projects\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "limit": {
+              "default": 5,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "remarkable_searchArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_searchOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Search reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_status",
+        "description": "\n    <usecase>Check connection status, active transport, and write capabilities.</usecase>\n    <instructions>\n    Returns authentication status, the active transport (cloud, local-dir, ssh, or\n    usb-web), the document count, and a capability matrix describing what each\n    transport can do. Use this to verify your connection, choose a transport, or\n    troubleshoot.\n\n    Capability notes:\n    - Export is available in every transport and creates only a bounded temporary\n      local resource; it never modifies the tablet.\n    - Cloud (default): full read/render/export/upload/mkdir/move/rename/delete \u2014 no device\n      needed, works from anywhere your token is valid.\n    - SSH: full capabilities over a local/USB connection to the tablet.\n    - USB web: read, render, export, and upload (to root) only \u2014 the tablet's USB web\n      interface firmware exposes no folder/move/rename/delete endpoints. For full\n      write parity over a USB cable, use SSH mode pointed at the USB IP.\n    - Local directory: fully offline read/render/export access to the desktop app's sync\n      cache. Strictly read-only to avoid corrupting app-managed state.\n    Write tools (upload/mkdir/move/rename/delete) are enabled by default; run\n    with --read-only (or REMARKABLE_READ_ONLY=1) to expose a read-only server.\n    </instructions>\n    <examples>\n    - remarkable_status()\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {},
+          "title": "remarkable_statusArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_statusOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Check reMarkable Connection",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_image",
+        "description": "\n    <usecase>Get an image of a specific page from a reMarkable document.</usecase>\n    <instructions>\n    Renders a notebook or document page as an image (PNG or SVG). This is useful for:\n    - Viewing hand-drawn diagrams, sketches, or UI mockups\n    - Getting visual context that text extraction might miss\n    - Implementing designs based on hand-drawn wireframes\n    - SVG format for scalable vector graphics that can be edited\n\n    ## Merged PDF + Annotation Rendering\n\n    PNG pages backed by an imported PDF automatically composite the PDF page with\n    its reMarkable annotations. Set render_merged=False for an annotation-only\n    render, or True to explicitly request compositing. SVG remains annotation-only.\n\n    ## Response Formats\n\n    By default, images are returned as embedded resources (EmbeddedResource) which\n    include the full image data inline:\n    - PNG: Returned as BlobResourceContents with base64-encoded data\n    - SVG: Returned as TextResourceContents with SVG markup\n\n    If your client doesn't support embedded resources in tool responses, set\n    compatibility=True to receive a JSON response with just the resource URI.\n    The client can then fetch the resource separately.\n\n    Optionally, enable include_ocr=True to extract text from the image using OCR.\n    Google Vision is used when configured; otherwise OCR runs locally with Tesseract.\n\n    Note: Native notebooks retain their existing stroke rendering behavior.\n    If older USB firmware returns only a native PDF export, PNG remains\n    available; SVG and explicit annotation-only rendering require an rmdoc\n    archive and return a clear error when it is unavailable.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - page: Page number (default: 1, 1-indexed)\n    - background: Background color as hex code. Supports RGB (#RRGGBB) or RGBA (#RRGGBBAA).\n      Default is \"#FBFBFB\" (reMarkable paper color), or set REMARKABLE_BACKGROUND_COLOR\n      env var to override. Use \"#00000000\" for transparent.\n    - output_format: Output format - \"png\" (default) or \"svg\" for vector graphics\n    - compatibility: If True, return resource URI in JSON instead of embedded resource.\n      Use this if your client doesn't support embedded resources in tool responses.\n    - include_ocr: Enable OCR text extraction from the image (default: False).\n    - render_merged: PDF compositing mode for PNG: None (default) automatically\n      merges PDF-backed pages, True explicitly requests merging, and False returns\n      the annotation-only layer. SVG output remains annotation-only.\n    </parameters>\n    <examples>\n    - remarkable_image(\"UI Mockup\")  # Get first page as embedded PNG resource\n    - remarkable_image(\"Meeting Notes\", page=2)  # Get second page\n    - remarkable_image(\"/Work/Designs/Wireframe\", background=\"#FFFFFF\")  # White background\n    - remarkable_image(\"Sketch\", background=\"#00000000\")  # Transparent background\n    - remarkable_image(\"Diagram\", output_format=\"svg\")  # Get as embedded SVG resource\n    - remarkable_image(\"Notes\", compatibility=True)  # Return resource URI for retry\n    - remarkable_image(\"Notes\", include_ocr=True)  # Get image with OCR text extraction\n    - remarkable_image(\"Annotated PDF\")  # PDF + annotations composited automatically\n    - remarkable_image(\"Annotated PDF\", render_merged=False)  # Annotation layer only\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "background": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Background"
+            },
+            "output_format": {
+              "default": "png",
+              "title": "Output Format",
+              "type": "string"
+            },
+            "compatibility": {
+              "default": false,
+              "title": "Compatibility",
+              "type": "boolean"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "render_merged": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Render Merged"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_imageArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get reMarkable Page Image",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_export",
+        "description": "\n    <usecase>Export one reMarkable document as a reusable PDF or Markdown file.</usecase>\n    <instructions>\n    Exports a single document without modifying the tablet or its library.\n\n    The generated file is written to a server-managed temporary directory and\n    returned as an MCP ResourceLink. The tool response stays small: it never embeds\n    the PDF/Markdown as base64 and never writes to an arbitrary host path. The\n    resource expires after 15 minutes and may be evicted earlier when more than\n    eight exports are retained. Fetch and save the linked resource for durable use.\n\n    PDF behavior:\n    - `pdf_mode=\"merged\"` (default) preserves complete physical pages, combining\n      mapped PDF underlays and reMarkable annotations.\n    - `pdf_mode=\"annotations\"` exports full-page annotation layers only when the\n      transport provides a document archive.\n    - Pages remain in physical device order. A render failure produces a labeled\n      placeholder at that ordinal and a partial-export warning; pages are not skipped.\n\n    Markdown behavior:\n    - Preserves basic source metadata and fixed source text, typed text, annotation,\n      highlight, and OCR sections.\n    - OCR is opt-in and uses the same configured/cached OCR path as remarkable_read.\n    - Extracted text is kept verbatim; the exporter does not invent headings, lists,\n      links, or page attribution it cannot prove.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents).\n    - output_format: \"pdf\" (default) or \"markdown\".\n    - pdf_mode: PDF-only mode, \"merged\" (default) or \"annotations\".\n    - include_ocr: Enable existing handwriting OCR for Markdown (default: False).\n    </parameters>\n    <examples>\n    - remarkable_export(\"Meeting Notes\")\n    - remarkable_export(\"Research Paper\", output_format=\"pdf\", pdf_mode=\"annotations\")\n    - remarkable_export(\"Journal\", output_format=\"markdown\", include_ocr=True)\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "output_format": {
+              "default": "pdf",
+              "enum": [
+                "pdf",
+                "markdown"
+              ],
+              "title": "Output Format",
+              "type": "string"
+            },
+            "pdf_mode": {
+              "default": "merged",
+              "enum": [
+                "merged",
+                "annotations"
+              ],
+              "title": "Pdf Mode",
+              "type": "string"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_exportArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Export reMarkable Document",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_upload",
+        "description": "\n        <usecase>Upload a PDF or EPUB file to the reMarkable tablet.</usecase>\n        <instructions>\n        Uploads a local file to the tablet. Only PDF and EPUB formats\n        are supported. Works in all three transports:\n        - Cloud: uploaded via the sync protocol; supports parent_folder + document_name\n        - SSH: transferred over SSH, metadata created; supports parent_folder + document_name\n        - USB web: uploaded via POST /upload. The multipart filename carries\n          document_name, parent_folder is ignored, and the tablet web service\n          chooses the destination folder.\n\n        Requires write mode (the default; disabled with --read-only).\n        </instructions>\n        <parameters>\n        - file_path: Absolute path to the local PDF or EPUB file\n        - parent_folder: Destination folder path on tablet (default: root \"/\").\n          Honored in cloud and SSH modes; ignored by the USB web interface.\n        - document_name: Display name on tablet (default: filename without\n          extension). Honored in every mode; USB web uses it as the uploaded filename.\n        - defer_restart: SSH only. When True, skip the xochitl restart that\n          normally makes the upload visible. Use this for every upload in a\n          batch, then call remarkable_refresh() ONCE at the end. Each restart\n          forces a full document-store rescan that briefly destabilises the SSH\n          link, so deferring turns N restarts (and N races) into one. The\n          response sets \"refresh_pending\": true while a refresh is owed. Ignored\n          in cloud/USB modes (no xochitl).\n        </parameters>\n        <examples>\n        - remarkable_upload(\"/tmp/paper.pdf\")\n        - remarkable_upload(\"/tmp/book.epub\", parent_folder=\"/Books\")\n        - remarkable_upload(\"/tmp/report.pdf\", document_name=\"Q4 Report\")\n        - # batch import: defer every upload, refresh once at the end\n          remarkable_upload(\"/tmp/a.pdf\", defer_restart=True)\n          remarkable_upload(\"/tmp/b.pdf\", defer_restart=True)\n          remarkable_refresh()\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "file_path": {
+              "title": "File Path",
+              "type": "string"
+            },
+            "parent_folder": {
+              "default": "/",
+              "title": "Parent Folder",
+              "type": "string"
+            },
+            "document_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Document Name"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "file_path"
+          ],
+          "title": "remarkable_uploadArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_uploadOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_markdown_to_pdf",
+        "description": "\n        <usecase>Render Markdown text as a PDF and upload it to the reMarkable tablet.</usecase>\n        <instructions>\n        Use this when the user wants notes, reports, summaries, or other Markdown\n        content written back to the tablet without first creating a local file.\n        Headings, lists, tables, links, blockquotes, and code blocks are rendered\n        into a paginated A4 PDF. Raw HTML is escaped and image assets are omitted\n        so rendering never reads local files or fetches remote content.\n\n        Works in all three transports:\n        - Cloud: sync upload with parent_folder and document_name\n        - SSH: filesystem upload with parent_folder and document_name\n        - USB web: upload whose multipart filename is document_name + \".pdf\";\n          parent_folder is ignored and the tablet web service chooses the folder.\n\n        Requires write mode (the default; disabled with --read-only).\n        </instructions>\n        <parameters>\n        - markdown: Markdown source text. Must not be empty.\n        - document_name: Display name on the tablet (default: \"Markdown\").\n        - parent_folder: Destination folder (default: root \"/\"). USB web ignores\n          this parameter because its upload endpoint has no folder argument.\n        - defer_restart: SSH only. When True, skip the xochitl restart and call\n          remarkable_refresh() once after the batch. Forwarded exactly like\n          remarkable_upload; ignored in cloud and USB web modes.\n        </parameters>\n        <examples>\n        - remarkable_markdown_to_pdf(\"# Meeting Notes\\n\\n- Follow up with Sam\")\n        - remarkable_markdown_to_pdf(\n            \"# Q4 Report\\n\\nRevenue increased **20%**.\",\n            document_name=\"Q4 Report\",\n            parent_folder=\"/Reports\",\n          )\n        - remarkable_markdown_to_pdf(\n            \"# Batch item\", document_name=\"Item 1\", defer_restart=True\n          )\n          remarkable_refresh()\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "markdown": {
+              "title": "Markdown",
+              "type": "string"
+            },
+            "document_name": {
+              "default": "Markdown",
+              "title": "Document Name",
+              "type": "string"
+            },
+            "parent_folder": {
+              "default": "/",
+              "title": "Parent Folder",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "markdown"
+          ],
+          "title": "remarkable_markdown_to_pdfArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_markdown_to_pdfOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_mkdir",
+        "description": "\n            <usecase>Create a new folder on the reMarkable tablet.</usecase>\n            <instructions>\n            Creates a folder in the tablet's document hierarchy. In SSH mode the\n            folder appears after xochitl restarts; in cloud mode it syncs to all\n            your devices.\n\n            Works in cloud and SSH modes (default; --read-only disables). Not available over the\n            USB web interface (the firmware exposes no folder-create endpoint).\n            </instructions>\n            <parameters>\n            - folder_name: Name of the new folder\n            - parent: Parent folder path (default: root \"/\")\n            - defer_restart: SSH only. Skip the xochitl restart so a batch of\n              writes can refresh once via remarkable_refresh() instead of once\n              per write. Sets \"refresh_pending\": true. Ignored in cloud mode.\n            </parameters>\n            <examples>\n            - remarkable_mkdir(\"Projects\")\n            - remarkable_mkdir(\"2024\", parent=\"/Archive\")\n            </examples>\n            ",
+        "inputSchema": {
+          "properties": {
+            "folder_name": {
+              "title": "Folder Name",
+              "type": "string"
+            },
+            "parent": {
+              "default": "/",
+              "title": "Parent",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "folder_name"
+          ],
+          "title": "remarkable_mkdirArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_mkdirOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_move",
+        "description": "\n            <usecase>Move a document or folder to a different location.</usecase>\n            <instructions>\n            Moves a document or folder by updating its parent reference in the metadata.\n            Find the document name with remarkable_browse() first.\n\n            Works in cloud and SSH modes (default; --read-only disables). Not available over the\n            USB web interface.\n            </instructions>\n            <parameters>\n            - document: Name or path of the document/folder to move\n            - dest_folder: Destination folder path (use \"/\" for root)\n            - defer_restart: SSH only. Skip the xochitl restart so a batch of\n              writes can refresh once via remarkable_refresh() instead of once\n              per write. Sets \"refresh_pending\": true. Ignored in cloud mode.\n            </parameters>\n            <examples>\n            - remarkable_move(\"Meeting Notes\", \"/Archive\")\n            - remarkable_move(\"Old Project\", \"/Archive/2023\")\n            </examples>\n            ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "dest_folder": {
+              "title": "Dest Folder",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document",
+            "dest_folder"
+          ],
+          "title": "remarkable_moveArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_moveOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_rename",
+        "description": "\n            <usecase>Rename a document or folder on the reMarkable tablet.</usecase>\n            <instructions>\n            Changes the display name of a document or folder by updating its metadata.\n            Find the document name with remarkable_browse() first.\n\n            Works in cloud and SSH modes (default; --read-only disables). Not available over the\n            USB web interface.\n            </instructions>\n            <parameters>\n            - document: Current name or path of the document/folder\n            - new_name: New display name\n            - defer_restart: SSH only. Skip the xochitl restart so a batch of\n              writes can refresh once via remarkable_refresh() instead of once\n              per write. Sets \"refresh_pending\": true. Ignored in cloud mode.\n            </parameters>\n            <examples>\n            - remarkable_rename(\"Untitled\", \"Meeting Notes 2024-01-15\")\n            - remarkable_rename(\"/Work/Draft\", \"Final Report\")\n            </examples>\n            ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "new_name": {
+              "title": "New Name",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document",
+            "new_name"
+          ],
+          "title": "remarkable_renameArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_renameOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_delete",
+        "description": "\n            <usecase>Delete a document or folder on the reMarkable tablet.</usecase>\n            <instructions>\n            DESTRUCTIVE operation. By default the item is moved to the tablet's\n            Trash and remains recoverable. In SSH mode only, permanent=True removes\n            the resolved UUID and all sidecar files instead; use that only when the\n            user explicitly asked for permanent deletion.\n\n            Works in cloud and SSH modes (default; --read-only disables). Not available over the\n            USB web interface.\n\n            If the client supports elicitation, this tool asks the user to confirm\n            before deleting. If the client cannot show a confirmation prompt, the\n            delete is refused unless REMARKABLE_SKIP_CONFIRM=1 is set (for headless\n            automation).\n            </instructions>\n            <parameters>\n            - document: Name or path of the document/folder to delete\n            - defer_restart: SSH only. Skip the xochitl restart so a batch of\n              deletes can refresh once via remarkable_refresh() instead of once\n              per delete. Sets \"refresh_pending\": true. Ignored in cloud mode.\n            - permanent: SSH only. Permanently remove the resolved document/folder\n              files instead of moving the item to Trash (default: False).\n            </parameters>\n            <examples>\n            - remarkable_delete(\"Old Notes\")\n            - remarkable_delete(\"/Books/Archive/Old Draft\")\n            </examples>\n            ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            },
+            "permanent": {
+              "default": false,
+              "title": "Permanent",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_deleteArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_deleteOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true
+        }
+      },
+      {
+        "name": "remarkable_canvas",
+        "description": "\n        <usecase>Open a reMarkable page in an interactive canvas viewer.</usecase>\n        <instructions>\n        Renders a notebook or document page and, in clients that support MCP Apps\n        interactive UI, opens a canvas viewer that lets the user page through the\n        document. This is the entry point for the interactive viewer.\n\n        The canvas is currently a read-only viewer (render + page navigation).\n        For plain image extraction without the interactive surface, use\n        remarkable_image instead.\n\n        Clients that do not support MCP Apps still get the rendered page back as\n        an embedded PNG image, so this tool is useful everywhere; it just won't\n        open the interactive panel.\n        </instructions>\n        <parameters>\n        - document: Document name or path (use remarkable_browse to find documents)\n        - page: Page number to open (default: 1, 1-indexed)\n        </parameters>\n        <examples>\n        - remarkable_canvas(\"Meeting Notes\")\n        - remarkable_canvas(\"/Work/Sketches/Wireframe\", page=3)\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_canvasArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://remarkable/canvas",
+            "visibility": [
+              "model",
+              "app"
+            ],
+            "preferredDisplayMode": "inline"
+          },
+          "openai/outputTemplate": "ui://remarkable/canvas"
+        }
+      }
+    ],
+    "prompts": [
+      {
+        "name": "summarize_recent",
+        "title": "Summarize Recent Notes",
+        "description": "Get an AI summary of your recent reMarkable notes",
+        "arguments": []
+      },
+      {
+        "name": "find_notes",
+        "title": "Find Notes About a Topic",
+        "description": "Search your reMarkable tablet for notes on a specific topic",
+        "arguments": [
+          {
+            "name": "topic",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "daily_review",
+        "title": "Daily Notes Review",
+        "description": "Review what you worked on today in your reMarkable tablet",
+        "arguments": []
+      },
+      {
+        "name": "export_document",
+        "title": "Export Document Content",
+        "description": "Extract and format content from a specific document",
+        "arguments": [
+          {
+            "name": "document_name",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "organize_library",
+        "title": "Organize My Library",
+        "description": "Get suggestions for organizing your reMarkable library",
+        "arguments": []
+      },
+      {
+        "name": "meeting_notes",
+        "title": "Extract Meeting Notes",
+        "description": "Find and extract meeting notes from your reMarkable",
+        "arguments": [
+          {
+            "name": "meeting_keyword",
+            "required": false
+          }
+        ]
+      }
+    ]
+  },
+  "ssh": {
+    "tools": [
+      {
+        "name": "remarkable_read",
+        "description": "\n    <usecase>Read and extract text content from a reMarkable document.</usecase>\n    <instructions>\n    Extracts content from a document with pagination to preserve context window.\n\n    Content types:\n    - \"text\" (default): Full extracted text (PDF/EPUB content + annotations)\n    - \"raw\": Original PDF/EPUB text only (no annotations). Works in every\n      transport, as long as the source file is present (very large PDFs/EPUBs\n      may not be synced to the cloud).\n    - \"annotations\": Only annotations, highlights, and handwritten notes\n\n    Use pagination to read large documents without overwhelming context:\n    - Start with page=1 (default)\n    - Check \"more\" field - if true, there's more content\n    - Use \"next_page\" value to get the next page\n    - \"total_pages\" is the physical document count; \"content_pages\" is the\n      extracted-text count used by page/more/next_page\n    - \"total_pages_known\" reports whether the physical count was available.\n      Raw PDF reads count the downloaded PDF directly. If a raw EPUB archive\n      cannot be read, content still returns with total_pages=null.\n    - If older USB firmware returns only a native PDF, \"text\" returns source\n      text without annotations and \"annotations\" reports that the archive is\n      unavailable instead of trying to parse the PDF as a zip.\n\n    Use grep to search for specific content on the current page.\n\n    OCR uses Google Vision when configured, otherwise Tesseract.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - content_type: \"text\" (full), \"raw\" (PDF/EPUB only), \"annotations\" (notes only)\n    - page: Extracted-content page number (default: 1). Physical document pages\n      are reported separately as total_pages.\n    - grep: Optional regex pattern to filter content (searches current page)\n    - include_ocr: Enable handwriting OCR for annotations (default: False)\n    </parameters>\n    <examples>\n    - remarkable_read(\"Meeting Notes\")  # Get first page of text\n    - remarkable_read(\"Book.pdf\", content_type=\"raw\")  # Get raw PDF text\n    - remarkable_read(\"Notes\", content_type=\"annotations\")  # Only annotations\n    - remarkable_read(\"Report\", page=2)  # Get second page\n    - remarkable_read(\"Manual\", grep=\"installation\")  # Search for keyword\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "content_type": {
+              "default": "text",
+              "enum": [
+                "text",
+                "raw",
+                "annotations"
+              ],
+              "title": "Content Type",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_readArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_readOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Read reMarkable Document",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_browse",
+        "description": "\n    <usecase>Browse your reMarkable library or search for documents.</usecase>\n    <instructions>\n    Three modes:\n    1. Browse mode (default): List contents of a folder\n       - Use path=\"/\" for root folder\n       - Use path=\"/FolderName\" to navigate into folders\n    2. Search mode: Find documents by name\n       - Set query=\"search term\" to search across all documents\n    3. Filter by tags: Find documents with specific tags\n       - Set tags=[\"tag1\", \"tag2\"] to filter by tags\n       - Works in both browse and search modes\n\n    Results include document names, types, modification dates, and tags.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are accessible. Paths are relative to the root path.\n    </instructions>\n    <parameters>\n    - path: Folder path to browse (default: \"/\" for root)\n    - query: Search term to find documents by name (optional, triggers search mode)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_browse()  # List root folder\n    - remarkable_browse(\"/Work\")  # List Work folder\n    - remarkable_browse(query=\"meeting\")  # Search for \"meeting\"\n    - remarkable_browse(tags=[\"important\"])  # Show documents with \"important\" tag\n    - remarkable_browse(query=\"project\", tags=[\"work\"])  # Search with tag filter\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "path": {
+              "default": "/",
+              "title": "Path",
+              "type": "string"
+            },
+            "query": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Query"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "title": "remarkable_browseArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_browseOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Browse reMarkable Library",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_recent",
+        "description": "\n    <usecase>Get your most recently modified documents.</usecase>\n    <instructions>\n    Returns documents sorted by modification date (newest first).\n    Optionally includes a text preview of each document's content.\n\n    Use this to quickly find what you were working on recently.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are included.\n    </instructions>\n    <parameters>\n    - limit: Maximum documents to return (default: 10, max: 50 without preview, 10 with preview)\n    - include_preview: Include first ~200 chars of text content (default: False)\n    </parameters>\n    <examples>\n    - remarkable_recent()  # Last 10 documents\n    - remarkable_recent(limit=5, include_preview=True)  # With content preview\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "limit": {
+              "default": 10,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_preview": {
+              "default": false,
+              "title": "Include Preview",
+              "type": "boolean"
+            }
+          },
+          "title": "remarkable_recentArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_recentOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Recent reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_search",
+        "description": "\n    <usecase>Search across multiple documents and return matching content.</usecase>\n    <instructions>\n    Searches document names for the query, then optionally searches content with grep.\n    Can filter by tags to narrow results.\n    Returns summaries from multiple documents in a single call.\n\n    This is efficient for finding information across your library without\n    making many individual tool calls.\n\n    Limits:\n    - Max 5 documents per search (to keep response size manageable)\n    - Returns first page (~8000 chars) of each matching document\n    - Use grep to filter to relevant sections\n    </instructions>\n    <parameters>\n    - query: Search term for document names\n    - grep: Optional pattern to search within document content\n    - limit: Max documents to return (default: 5, max: 5)\n    - include_ocr: Enable OCR for handwritten content (default: False)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_search(\"meeting\")  # Find docs with \"meeting\" in name\n    - remarkable_search(\"journal\", grep=\"project\")  # Find \"project\" in journals\n    - remarkable_search(\"notes\", include_ocr=True)  # Search with OCR enabled\n    - remarkable_search(\"project\", tags=[\"work\"])  # Find work-tagged projects\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "limit": {
+              "default": 5,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "remarkable_searchArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_searchOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Search reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_status",
+        "description": "\n    <usecase>Check connection status, active transport, and write capabilities.</usecase>\n    <instructions>\n    Returns authentication status, the active transport (cloud, local-dir, ssh, or\n    usb-web), the document count, and a capability matrix describing what each\n    transport can do. Use this to verify your connection, choose a transport, or\n    troubleshoot.\n\n    Capability notes:\n    - Export is available in every transport and creates only a bounded temporary\n      local resource; it never modifies the tablet.\n    - Cloud (default): full read/render/export/upload/mkdir/move/rename/delete \u2014 no device\n      needed, works from anywhere your token is valid.\n    - SSH: full capabilities over a local/USB connection to the tablet.\n    - USB web: read, render, export, and upload (to root) only \u2014 the tablet's USB web\n      interface firmware exposes no folder/move/rename/delete endpoints. For full\n      write parity over a USB cable, use SSH mode pointed at the USB IP.\n    - Local directory: fully offline read/render/export access to the desktop app's sync\n      cache. Strictly read-only to avoid corrupting app-managed state.\n    Write tools (upload/mkdir/move/rename/delete) are enabled by default; run\n    with --read-only (or REMARKABLE_READ_ONLY=1) to expose a read-only server.\n    </instructions>\n    <examples>\n    - remarkable_status()\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {},
+          "title": "remarkable_statusArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_statusOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Check reMarkable Connection",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_image",
+        "description": "\n    <usecase>Get an image of a specific page from a reMarkable document.</usecase>\n    <instructions>\n    Renders a notebook or document page as an image (PNG or SVG). This is useful for:\n    - Viewing hand-drawn diagrams, sketches, or UI mockups\n    - Getting visual context that text extraction might miss\n    - Implementing designs based on hand-drawn wireframes\n    - SVG format for scalable vector graphics that can be edited\n\n    ## Merged PDF + Annotation Rendering\n\n    PNG pages backed by an imported PDF automatically composite the PDF page with\n    its reMarkable annotations. Set render_merged=False for an annotation-only\n    render, or True to explicitly request compositing. SVG remains annotation-only.\n\n    ## Response Formats\n\n    By default, images are returned as embedded resources (EmbeddedResource) which\n    include the full image data inline:\n    - PNG: Returned as BlobResourceContents with base64-encoded data\n    - SVG: Returned as TextResourceContents with SVG markup\n\n    If your client doesn't support embedded resources in tool responses, set\n    compatibility=True to receive a JSON response with just the resource URI.\n    The client can then fetch the resource separately.\n\n    Optionally, enable include_ocr=True to extract text from the image using OCR.\n    Google Vision is used when configured; otherwise OCR runs locally with Tesseract.\n\n    Note: Native notebooks retain their existing stroke rendering behavior.\n    If older USB firmware returns only a native PDF export, PNG remains\n    available; SVG and explicit annotation-only rendering require an rmdoc\n    archive and return a clear error when it is unavailable.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - page: Page number (default: 1, 1-indexed)\n    - background: Background color as hex code. Supports RGB (#RRGGBB) or RGBA (#RRGGBBAA).\n      Default is \"#FBFBFB\" (reMarkable paper color), or set REMARKABLE_BACKGROUND_COLOR\n      env var to override. Use \"#00000000\" for transparent.\n    - output_format: Output format - \"png\" (default) or \"svg\" for vector graphics\n    - compatibility: If True, return resource URI in JSON instead of embedded resource.\n      Use this if your client doesn't support embedded resources in tool responses.\n    - include_ocr: Enable OCR text extraction from the image (default: False).\n    - render_merged: PDF compositing mode for PNG: None (default) automatically\n      merges PDF-backed pages, True explicitly requests merging, and False returns\n      the annotation-only layer. SVG output remains annotation-only.\n    </parameters>\n    <examples>\n    - remarkable_image(\"UI Mockup\")  # Get first page as embedded PNG resource\n    - remarkable_image(\"Meeting Notes\", page=2)  # Get second page\n    - remarkable_image(\"/Work/Designs/Wireframe\", background=\"#FFFFFF\")  # White background\n    - remarkable_image(\"Sketch\", background=\"#00000000\")  # Transparent background\n    - remarkable_image(\"Diagram\", output_format=\"svg\")  # Get as embedded SVG resource\n    - remarkable_image(\"Notes\", compatibility=True)  # Return resource URI for retry\n    - remarkable_image(\"Notes\", include_ocr=True)  # Get image with OCR text extraction\n    - remarkable_image(\"Annotated PDF\")  # PDF + annotations composited automatically\n    - remarkable_image(\"Annotated PDF\", render_merged=False)  # Annotation layer only\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "background": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Background"
+            },
+            "output_format": {
+              "default": "png",
+              "title": "Output Format",
+              "type": "string"
+            },
+            "compatibility": {
+              "default": false,
+              "title": "Compatibility",
+              "type": "boolean"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "render_merged": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Render Merged"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_imageArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get reMarkable Page Image",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_export",
+        "description": "\n    <usecase>Export one reMarkable document as a reusable PDF or Markdown file.</usecase>\n    <instructions>\n    Exports a single document without modifying the tablet or its library.\n\n    The generated file is written to a server-managed temporary directory and\n    returned as an MCP ResourceLink. The tool response stays small: it never embeds\n    the PDF/Markdown as base64 and never writes to an arbitrary host path. The\n    resource expires after 15 minutes and may be evicted earlier when more than\n    eight exports are retained. Fetch and save the linked resource for durable use.\n\n    PDF behavior:\n    - `pdf_mode=\"merged\"` (default) preserves complete physical pages, combining\n      mapped PDF underlays and reMarkable annotations.\n    - `pdf_mode=\"annotations\"` exports full-page annotation layers only when the\n      transport provides a document archive.\n    - Pages remain in physical device order. A render failure produces a labeled\n      placeholder at that ordinal and a partial-export warning; pages are not skipped.\n\n    Markdown behavior:\n    - Preserves basic source metadata and fixed source text, typed text, annotation,\n      highlight, and OCR sections.\n    - OCR is opt-in and uses the same configured/cached OCR path as remarkable_read.\n    - Extracted text is kept verbatim; the exporter does not invent headings, lists,\n      links, or page attribution it cannot prove.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents).\n    - output_format: \"pdf\" (default) or \"markdown\".\n    - pdf_mode: PDF-only mode, \"merged\" (default) or \"annotations\".\n    - include_ocr: Enable existing handwriting OCR for Markdown (default: False).\n    </parameters>\n    <examples>\n    - remarkable_export(\"Meeting Notes\")\n    - remarkable_export(\"Research Paper\", output_format=\"pdf\", pdf_mode=\"annotations\")\n    - remarkable_export(\"Journal\", output_format=\"markdown\", include_ocr=True)\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "output_format": {
+              "default": "pdf",
+              "enum": [
+                "pdf",
+                "markdown"
+              ],
+              "title": "Output Format",
+              "type": "string"
+            },
+            "pdf_mode": {
+              "default": "merged",
+              "enum": [
+                "merged",
+                "annotations"
+              ],
+              "title": "Pdf Mode",
+              "type": "string"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_exportArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Export reMarkable Document",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_author",
+        "description": "\n        <usecase>Author native reMarkable ink and notebooks. ONE compound write\n        primitive with three methods: \"draw\" appends pen/highlighter strokes to a\n        page, \"add_page\" appends a blank drawable page to a notebook, and\n        \"create_document\" creates a new notebook (optionally seeded with typed\n        text). This is the single tool behind the interactive canvas (Save \u2192 draw,\n        \uff0bPage \u2192 add_page, new notebook \u2192 create_document) AND model-driven markup\n        (highlighting, underlining, marking) \u2014 the model composes the strokes.</usecase>\n        <instructions>\n        Requires SSH mode (the default tablet-filesystem transport for write-back)\n        and write mode (the default; disabled with --read-only). All methods are\n        non-destructive (draw appends to existing ink and backs the page up to\n        {pageId}.rm.bak the first time), so no confirmation prompt is required.\n\n        Pick the method, then pass only that method's parameters:\n\n        - method=\"draw\": requires `document` + `page` + `strokes`. Strokes are\n          APPENDED to the page's ink. If the page has no ink layer yet (a fresh\n          notebook page, or a PDF/EPUB page never annotated), a blank drawable\n          layer is created automatically. Coordinates: each point is [nx, ny] or\n          [nx, ny, pressure] with nx, ny in [0,1] from the page's TOP-LEFT; the\n          tool maps them to the page's own paper_size so the same payload works on\n          any device. (PDF-backed pages currently use the same map; precise PDF\n          overlay placement is a follow-up.)\n\n        - method=\"add_page\": requires `document`. Appends one blank page to the END\n          of a native notebook and returns its 1-based page number. Only native\n          notebooks support this (PDF/EPUB pages already exist).\n\n        - method=\"create_document\": requires `name`. Creates a new native notebook\n          in `folder` (default root). Leave `text` EMPTY for a blank notebook \u2014\n          that is the default and the correct choice. Only pass `text` when the\n          user EXPLICITLY asks for specific typed content; never invent a title,\n          placeholder, or \"created by\" line. Returns the new document id and\n          first-page geometry.\n\n        The interactive canvas calls this exact tool via the MCP Apps bridge,\n        passing ui_submitted=true for draw (the human already chose Save). A model\n        calling it directly should omit ui_submitted.\n        </instructions>\n        <parameters>\n        - method: \"draw\" | \"add_page\" | \"create_document\".\n        - document: Target document name/path/id (draw, add_page).\n        - page: 1-based page number (draw).\n        - strokes: List of stroke dicts (draw). Each:\n            {\"points\": [[nx, ny], [nx, ny, pressure], ...],\n             \"tool\": \"fineliner\" | \"highlighter\" | int,\n             \"color\": \"black\" | \"yellow\" | ...,\n             \"width\": <optional float>, \"thickness_scale\": <optional float>}\n        - name: Title of the new notebook (create_document).\n        - text: Optional typed text for the first page (create_document). Omit it\n            unless the user explicitly requested specific content; never fabricate\n            placeholder text. Paragraphs split on newlines.\n        - folder: Destination folder path (create_document; default \"/\").\n        - ui_submitted: Set by the canvas app when the user clicked Save. Models omit it.\n        - defer_restart: Skip the xochitl restart for this write. Call\n          remarkable_refresh() once after the batch. The response sets\n          refresh_pending=true while a refresh is owed.\n        </parameters>\n        <examples>\n        - remarkable_author(method=\"draw\", document=\"Ideas\", page=1,\n            strokes=[{\"points\": [[0.1,0.2],[0.8,0.2]], \"tool\": \"highlighter\", \"color\": \"yellow\"}])\n        - remarkable_author(method=\"add_page\", document=\"Ideas\")\n        - remarkable_author(method=\"create_document\", name=\"Sketches\")\n        - remarkable_author(method=\"create_document\", name=\"Meeting notes\",\n            text=\"Agenda\nFollow-ups\")  # only when the user supplied that text\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "method": {
+              "title": "Method",
+              "type": "string"
+            },
+            "document": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Document"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Page"
+            },
+            "strokes": {
+              "anyOf": [
+                {
+                  "items": {},
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Strokes"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Name"
+            },
+            "text": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Text"
+            },
+            "folder": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Folder"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            },
+            "ui_submitted": {
+              "default": false,
+              "title": "Ui Submitted",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "method"
+          ],
+          "title": "remarkable_authorArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_authorOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_upload",
+        "description": "\n        <usecase>Upload a PDF or EPUB file to the reMarkable tablet.</usecase>\n        <instructions>\n        Uploads a local file to the tablet. Only PDF and EPUB formats\n        are supported. Works in all three transports:\n        - Cloud: uploaded via the sync protocol; supports parent_folder + document_name\n        - SSH: transferred over SSH, metadata created; supports parent_folder + document_name\n        - USB web: uploaded via POST /upload. The multipart filename carries\n          document_name, parent_folder is ignored, and the tablet web service\n          chooses the destination folder.\n\n        Requires write mode (the default; disabled with --read-only).\n        </instructions>\n        <parameters>\n        - file_path: Absolute path to the local PDF or EPUB file\n        - parent_folder: Destination folder path on tablet (default: root \"/\").\n          Honored in cloud and SSH modes; ignored by the USB web interface.\n        - document_name: Display name on tablet (default: filename without\n          extension). Honored in every mode; USB web uses it as the uploaded filename.\n        - defer_restart: SSH only. When True, skip the xochitl restart that\n          normally makes the upload visible. Use this for every upload in a\n          batch, then call remarkable_refresh() ONCE at the end. Each restart\n          forces a full document-store rescan that briefly destabilises the SSH\n          link, so deferring turns N restarts (and N races) into one. The\n          response sets \"refresh_pending\": true while a refresh is owed. Ignored\n          in cloud/USB modes (no xochitl).\n        </parameters>\n        <examples>\n        - remarkable_upload(\"/tmp/paper.pdf\")\n        - remarkable_upload(\"/tmp/book.epub\", parent_folder=\"/Books\")\n        - remarkable_upload(\"/tmp/report.pdf\", document_name=\"Q4 Report\")\n        - # batch import: defer every upload, refresh once at the end\n          remarkable_upload(\"/tmp/a.pdf\", defer_restart=True)\n          remarkable_upload(\"/tmp/b.pdf\", defer_restart=True)\n          remarkable_refresh()\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "file_path": {
+              "title": "File Path",
+              "type": "string"
+            },
+            "parent_folder": {
+              "default": "/",
+              "title": "Parent Folder",
+              "type": "string"
+            },
+            "document_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Document Name"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "file_path"
+          ],
+          "title": "remarkable_uploadArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_uploadOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_markdown_to_pdf",
+        "description": "\n        <usecase>Render Markdown text as a PDF and upload it to the reMarkable tablet.</usecase>\n        <instructions>\n        Use this when the user wants notes, reports, summaries, or other Markdown\n        content written back to the tablet without first creating a local file.\n        Headings, lists, tables, links, blockquotes, and code blocks are rendered\n        into a paginated A4 PDF. Raw HTML is escaped and image assets are omitted\n        so rendering never reads local files or fetches remote content.\n\n        Works in all three transports:\n        - Cloud: sync upload with parent_folder and document_name\n        - SSH: filesystem upload with parent_folder and document_name\n        - USB web: upload whose multipart filename is document_name + \".pdf\";\n          parent_folder is ignored and the tablet web service chooses the folder.\n\n        Requires write mode (the default; disabled with --read-only).\n        </instructions>\n        <parameters>\n        - markdown: Markdown source text. Must not be empty.\n        - document_name: Display name on the tablet (default: \"Markdown\").\n        - parent_folder: Destination folder (default: root \"/\"). USB web ignores\n          this parameter because its upload endpoint has no folder argument.\n        - defer_restart: SSH only. When True, skip the xochitl restart and call\n          remarkable_refresh() once after the batch. Forwarded exactly like\n          remarkable_upload; ignored in cloud and USB web modes.\n        </parameters>\n        <examples>\n        - remarkable_markdown_to_pdf(\"# Meeting Notes\\n\\n- Follow up with Sam\")\n        - remarkable_markdown_to_pdf(\n            \"# Q4 Report\\n\\nRevenue increased **20%**.\",\n            document_name=\"Q4 Report\",\n            parent_folder=\"/Reports\",\n          )\n        - remarkable_markdown_to_pdf(\n            \"# Batch item\", document_name=\"Item 1\", defer_restart=True\n          )\n          remarkable_refresh()\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "markdown": {
+              "title": "Markdown",
+              "type": "string"
+            },
+            "document_name": {
+              "default": "Markdown",
+              "title": "Document Name",
+              "type": "string"
+            },
+            "parent_folder": {
+              "default": "/",
+              "title": "Parent Folder",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "markdown"
+          ],
+          "title": "remarkable_markdown_to_pdfArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_markdown_to_pdfOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_mkdir",
+        "description": "\n            <usecase>Create a new folder on the reMarkable tablet.</usecase>\n            <instructions>\n            Creates a folder in the tablet's document hierarchy. In SSH mode the\n            folder appears after xochitl restarts; in cloud mode it syncs to all\n            your devices.\n\n            Works in cloud and SSH modes (default; --read-only disables). Not available over the\n            USB web interface (the firmware exposes no folder-create endpoint).\n            </instructions>\n            <parameters>\n            - folder_name: Name of the new folder\n            - parent: Parent folder path (default: root \"/\")\n            - defer_restart: SSH only. Skip the xochitl restart so a batch of\n              writes can refresh once via remarkable_refresh() instead of once\n              per write. Sets \"refresh_pending\": true. Ignored in cloud mode.\n            </parameters>\n            <examples>\n            - remarkable_mkdir(\"Projects\")\n            - remarkable_mkdir(\"2024\", parent=\"/Archive\")\n            </examples>\n            ",
+        "inputSchema": {
+          "properties": {
+            "folder_name": {
+              "title": "Folder Name",
+              "type": "string"
+            },
+            "parent": {
+              "default": "/",
+              "title": "Parent",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "folder_name"
+          ],
+          "title": "remarkable_mkdirArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_mkdirOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_move",
+        "description": "\n            <usecase>Move a document or folder to a different location.</usecase>\n            <instructions>\n            Moves a document or folder by updating its parent reference in the metadata.\n            Find the document name with remarkable_browse() first.\n\n            Works in cloud and SSH modes (default; --read-only disables). Not available over the\n            USB web interface.\n            </instructions>\n            <parameters>\n            - document: Name or path of the document/folder to move\n            - dest_folder: Destination folder path (use \"/\" for root)\n            - defer_restart: SSH only. Skip the xochitl restart so a batch of\n              writes can refresh once via remarkable_refresh() instead of once\n              per write. Sets \"refresh_pending\": true. Ignored in cloud mode.\n            </parameters>\n            <examples>\n            - remarkable_move(\"Meeting Notes\", \"/Archive\")\n            - remarkable_move(\"Old Project\", \"/Archive/2023\")\n            </examples>\n            ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "dest_folder": {
+              "title": "Dest Folder",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document",
+            "dest_folder"
+          ],
+          "title": "remarkable_moveArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_moveOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_rename",
+        "description": "\n            <usecase>Rename a document or folder on the reMarkable tablet.</usecase>\n            <instructions>\n            Changes the display name of a document or folder by updating its metadata.\n            Find the document name with remarkable_browse() first.\n\n            Works in cloud and SSH modes (default; --read-only disables). Not available over the\n            USB web interface.\n            </instructions>\n            <parameters>\n            - document: Current name or path of the document/folder\n            - new_name: New display name\n            - defer_restart: SSH only. Skip the xochitl restart so a batch of\n              writes can refresh once via remarkable_refresh() instead of once\n              per write. Sets \"refresh_pending\": true. Ignored in cloud mode.\n            </parameters>\n            <examples>\n            - remarkable_rename(\"Untitled\", \"Meeting Notes 2024-01-15\")\n            - remarkable_rename(\"/Work/Draft\", \"Final Report\")\n            </examples>\n            ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "new_name": {
+              "title": "New Name",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document",
+            "new_name"
+          ],
+          "title": "remarkable_renameArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_renameOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_delete",
+        "description": "\n            <usecase>Delete a document or folder on the reMarkable tablet.</usecase>\n            <instructions>\n            DESTRUCTIVE operation. By default the item is moved to the tablet's\n            Trash and remains recoverable. In SSH mode only, permanent=True removes\n            the resolved UUID and all sidecar files instead; use that only when the\n            user explicitly asked for permanent deletion.\n\n            Works in cloud and SSH modes (default; --read-only disables). Not available over the\n            USB web interface.\n\n            If the client supports elicitation, this tool asks the user to confirm\n            before deleting. If the client cannot show a confirmation prompt, the\n            delete is refused unless REMARKABLE_SKIP_CONFIRM=1 is set (for headless\n            automation).\n            </instructions>\n            <parameters>\n            - document: Name or path of the document/folder to delete\n            - defer_restart: SSH only. Skip the xochitl restart so a batch of\n              deletes can refresh once via remarkable_refresh() instead of once\n              per delete. Sets \"refresh_pending\": true. Ignored in cloud mode.\n            - permanent: SSH only. Permanently remove the resolved document/folder\n              files instead of moving the item to Trash (default: False).\n            </parameters>\n            <examples>\n            - remarkable_delete(\"Old Notes\")\n            - remarkable_delete(\"/Books/Archive/Old Draft\")\n            </examples>\n            ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            },
+            "permanent": {
+              "default": false,
+              "title": "Permanent",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_deleteArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_deleteOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true
+        }
+      },
+      {
+        "name": "remarkable_refresh",
+        "description": "\n        <usecase>Restart xochitl once to apply writes made with\n        defer_restart=True (or with REMARKABLE_DEFER_RESTART set).</usecase>\n        <instructions>\n        SSH only. Each write normally restarts xochitl so the change becomes\n        visible, but every restart forces a full document-store rescan that\n        briefly destabilises the SSH link. For a batch of writes, pass\n        defer_restart=True to each one and then call this tool ONCE at the end:\n        it pays the restart cost a single time instead of once per write,\n        eliminating the per-write race and the redundant rescans.\n\n        Once this server process has confirmed a clean refresh state, calling it\n        again with nothing pending is a no-op. The first explicit refresh in a\n        new process still restarts xochitl because pending work from an earlier\n        process cannot be inferred safely from memory.\n        Requires write mode (the default; disabled with --read-only).\n        </instructions>\n        <parameters>(none)</parameters>\n        <examples>\n        - remarkable_upload(\"/tmp/a.pdf\", defer_restart=True)\n          remarkable_upload(\"/tmp/b.pdf\", defer_restart=True)\n          remarkable_refresh()\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {},
+          "title": "remarkable_refreshArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_refreshOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_canvas",
+        "description": "\n        <usecase>Open a reMarkable page in an interactive canvas viewer.</usecase>\n        <instructions>\n        Renders a notebook or document page and, in clients that support MCP Apps\n        interactive UI, opens a canvas viewer that lets the user page through the\n        document. This is the entry point for the interactive viewer.\n\n        The canvas is currently a read-only viewer (render + page navigation).\n        For plain image extraction without the interactive surface, use\n        remarkable_image instead.\n\n        Clients that do not support MCP Apps still get the rendered page back as\n        an embedded PNG image, so this tool is useful everywhere; it just won't\n        open the interactive panel.\n        </instructions>\n        <parameters>\n        - document: Document name or path (use remarkable_browse to find documents)\n        - page: Page number to open (default: 1, 1-indexed)\n        </parameters>\n        <examples>\n        - remarkable_canvas(\"Meeting Notes\")\n        - remarkable_canvas(\"/Work/Sketches/Wireframe\", page=3)\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_canvasArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://remarkable/canvas",
+            "visibility": [
+              "model",
+              "app"
+            ],
+            "preferredDisplayMode": "inline"
+          },
+          "openai/outputTemplate": "ui://remarkable/canvas"
+        }
+      }
+    ],
+    "prompts": [
+      {
+        "name": "summarize_recent",
+        "title": "Summarize Recent Notes",
+        "description": "Get an AI summary of your recent reMarkable notes",
+        "arguments": []
+      },
+      {
+        "name": "find_notes",
+        "title": "Find Notes About a Topic",
+        "description": "Search your reMarkable tablet for notes on a specific topic",
+        "arguments": [
+          {
+            "name": "topic",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "daily_review",
+        "title": "Daily Notes Review",
+        "description": "Review what you worked on today in your reMarkable tablet",
+        "arguments": []
+      },
+      {
+        "name": "export_document",
+        "title": "Export Document Content",
+        "description": "Extract and format content from a specific document",
+        "arguments": [
+          {
+            "name": "document_name",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "organize_library",
+        "title": "Organize My Library",
+        "description": "Get suggestions for organizing your reMarkable library",
+        "arguments": []
+      },
+      {
+        "name": "meeting_notes",
+        "title": "Extract Meeting Notes",
+        "description": "Find and extract meeting notes from your reMarkable",
+        "arguments": [
+          {
+            "name": "meeting_keyword",
+            "required": false
+          }
+        ]
+      }
+    ]
+  },
+  "usb-web": {
+    "tools": [
+      {
+        "name": "remarkable_read",
+        "description": "\n    <usecase>Read and extract text content from a reMarkable document.</usecase>\n    <instructions>\n    Extracts content from a document with pagination to preserve context window.\n\n    Content types:\n    - \"text\" (default): Full extracted text (PDF/EPUB content + annotations)\n    - \"raw\": Original PDF/EPUB text only (no annotations). Works in every\n      transport, as long as the source file is present (very large PDFs/EPUBs\n      may not be synced to the cloud).\n    - \"annotations\": Only annotations, highlights, and handwritten notes\n\n    Use pagination to read large documents without overwhelming context:\n    - Start with page=1 (default)\n    - Check \"more\" field - if true, there's more content\n    - Use \"next_page\" value to get the next page\n    - \"total_pages\" is the physical document count; \"content_pages\" is the\n      extracted-text count used by page/more/next_page\n    - \"total_pages_known\" reports whether the physical count was available.\n      Raw PDF reads count the downloaded PDF directly. If a raw EPUB archive\n      cannot be read, content still returns with total_pages=null.\n    - If older USB firmware returns only a native PDF, \"text\" returns source\n      text without annotations and \"annotations\" reports that the archive is\n      unavailable instead of trying to parse the PDF as a zip.\n\n    Use grep to search for specific content on the current page.\n\n    OCR uses Google Vision when configured, otherwise Tesseract.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - content_type: \"text\" (full), \"raw\" (PDF/EPUB only), \"annotations\" (notes only)\n    - page: Extracted-content page number (default: 1). Physical document pages\n      are reported separately as total_pages.\n    - grep: Optional regex pattern to filter content (searches current page)\n    - include_ocr: Enable handwriting OCR for annotations (default: False)\n    </parameters>\n    <examples>\n    - remarkable_read(\"Meeting Notes\")  # Get first page of text\n    - remarkable_read(\"Book.pdf\", content_type=\"raw\")  # Get raw PDF text\n    - remarkable_read(\"Notes\", content_type=\"annotations\")  # Only annotations\n    - remarkable_read(\"Report\", page=2)  # Get second page\n    - remarkable_read(\"Manual\", grep=\"installation\")  # Search for keyword\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "content_type": {
+              "default": "text",
+              "enum": [
+                "text",
+                "raw",
+                "annotations"
+              ],
+              "title": "Content Type",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_readArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_readOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Read reMarkable Document",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_browse",
+        "description": "\n    <usecase>Browse your reMarkable library or search for documents.</usecase>\n    <instructions>\n    Three modes:\n    1. Browse mode (default): List contents of a folder\n       - Use path=\"/\" for root folder\n       - Use path=\"/FolderName\" to navigate into folders\n    2. Search mode: Find documents by name\n       - Set query=\"search term\" to search across all documents\n    3. Filter by tags: Find documents with specific tags\n       - Set tags=[\"tag1\", \"tag2\"] to filter by tags\n       - Works in both browse and search modes\n\n    Results include document names, types, modification dates, and tags.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are accessible. Paths are relative to the root path.\n    </instructions>\n    <parameters>\n    - path: Folder path to browse (default: \"/\" for root)\n    - query: Search term to find documents by name (optional, triggers search mode)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_browse()  # List root folder\n    - remarkable_browse(\"/Work\")  # List Work folder\n    - remarkable_browse(query=\"meeting\")  # Search for \"meeting\"\n    - remarkable_browse(tags=[\"important\"])  # Show documents with \"important\" tag\n    - remarkable_browse(query=\"project\", tags=[\"work\"])  # Search with tag filter\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "path": {
+              "default": "/",
+              "title": "Path",
+              "type": "string"
+            },
+            "query": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Query"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "title": "remarkable_browseArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_browseOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Browse reMarkable Library",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_recent",
+        "description": "\n    <usecase>Get your most recently modified documents.</usecase>\n    <instructions>\n    Returns documents sorted by modification date (newest first).\n    Optionally includes a text preview of each document's content.\n\n    Use this to quickly find what you were working on recently.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are included.\n    </instructions>\n    <parameters>\n    - limit: Maximum documents to return (default: 10, max: 50 without preview, 10 with preview)\n    - include_preview: Include first ~200 chars of text content (default: False)\n    </parameters>\n    <examples>\n    - remarkable_recent()  # Last 10 documents\n    - remarkable_recent(limit=5, include_preview=True)  # With content preview\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "limit": {
+              "default": 10,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_preview": {
+              "default": false,
+              "title": "Include Preview",
+              "type": "boolean"
+            }
+          },
+          "title": "remarkable_recentArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_recentOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Recent reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_search",
+        "description": "\n    <usecase>Search across multiple documents and return matching content.</usecase>\n    <instructions>\n    Searches document names for the query, then optionally searches content with grep.\n    Can filter by tags to narrow results.\n    Returns summaries from multiple documents in a single call.\n\n    This is efficient for finding information across your library without\n    making many individual tool calls.\n\n    Limits:\n    - Max 5 documents per search (to keep response size manageable)\n    - Returns first page (~8000 chars) of each matching document\n    - Use grep to filter to relevant sections\n    </instructions>\n    <parameters>\n    - query: Search term for document names\n    - grep: Optional pattern to search within document content\n    - limit: Max documents to return (default: 5, max: 5)\n    - include_ocr: Enable OCR for handwritten content (default: False)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_search(\"meeting\")  # Find docs with \"meeting\" in name\n    - remarkable_search(\"journal\", grep=\"project\")  # Find \"project\" in journals\n    - remarkable_search(\"notes\", include_ocr=True)  # Search with OCR enabled\n    - remarkable_search(\"project\", tags=[\"work\"])  # Find work-tagged projects\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "limit": {
+              "default": 5,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "remarkable_searchArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_searchOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Search reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_status",
+        "description": "\n    <usecase>Check connection status, active transport, and write capabilities.</usecase>\n    <instructions>\n    Returns authentication status, the active transport (cloud, local-dir, ssh, or\n    usb-web), the document count, and a capability matrix describing what each\n    transport can do. Use this to verify your connection, choose a transport, or\n    troubleshoot.\n\n    Capability notes:\n    - Export is available in every transport and creates only a bounded temporary\n      local resource; it never modifies the tablet.\n    - Cloud (default): full read/render/export/upload/mkdir/move/rename/delete \u2014 no device\n      needed, works from anywhere your token is valid.\n    - SSH: full capabilities over a local/USB connection to the tablet.\n    - USB web: read, render, export, and upload (to root) only \u2014 the tablet's USB web\n      interface firmware exposes no folder/move/rename/delete endpoints. For full\n      write parity over a USB cable, use SSH mode pointed at the USB IP.\n    - Local directory: fully offline read/render/export access to the desktop app's sync\n      cache. Strictly read-only to avoid corrupting app-managed state.\n    Write tools (upload/mkdir/move/rename/delete) are enabled by default; run\n    with --read-only (or REMARKABLE_READ_ONLY=1) to expose a read-only server.\n    </instructions>\n    <examples>\n    - remarkable_status()\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {},
+          "title": "remarkable_statusArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_statusOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Check reMarkable Connection",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_image",
+        "description": "\n    <usecase>Get an image of a specific page from a reMarkable document.</usecase>\n    <instructions>\n    Renders a notebook or document page as an image (PNG or SVG). This is useful for:\n    - Viewing hand-drawn diagrams, sketches, or UI mockups\n    - Getting visual context that text extraction might miss\n    - Implementing designs based on hand-drawn wireframes\n    - SVG format for scalable vector graphics that can be edited\n\n    ## Merged PDF + Annotation Rendering\n\n    PNG pages backed by an imported PDF automatically composite the PDF page with\n    its reMarkable annotations. Set render_merged=False for an annotation-only\n    render, or True to explicitly request compositing. SVG remains annotation-only.\n\n    ## Response Formats\n\n    By default, images are returned as embedded resources (EmbeddedResource) which\n    include the full image data inline:\n    - PNG: Returned as BlobResourceContents with base64-encoded data\n    - SVG: Returned as TextResourceContents with SVG markup\n\n    If your client doesn't support embedded resources in tool responses, set\n    compatibility=True to receive a JSON response with just the resource URI.\n    The client can then fetch the resource separately.\n\n    Optionally, enable include_ocr=True to extract text from the image using OCR.\n    Google Vision is used when configured; otherwise OCR runs locally with Tesseract.\n\n    Note: Native notebooks retain their existing stroke rendering behavior.\n    If older USB firmware returns only a native PDF export, PNG remains\n    available; SVG and explicit annotation-only rendering require an rmdoc\n    archive and return a clear error when it is unavailable.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - page: Page number (default: 1, 1-indexed)\n    - background: Background color as hex code. Supports RGB (#RRGGBB) or RGBA (#RRGGBBAA).\n      Default is \"#FBFBFB\" (reMarkable paper color), or set REMARKABLE_BACKGROUND_COLOR\n      env var to override. Use \"#00000000\" for transparent.\n    - output_format: Output format - \"png\" (default) or \"svg\" for vector graphics\n    - compatibility: If True, return resource URI in JSON instead of embedded resource.\n      Use this if your client doesn't support embedded resources in tool responses.\n    - include_ocr: Enable OCR text extraction from the image (default: False).\n    - render_merged: PDF compositing mode for PNG: None (default) automatically\n      merges PDF-backed pages, True explicitly requests merging, and False returns\n      the annotation-only layer. SVG output remains annotation-only.\n    </parameters>\n    <examples>\n    - remarkable_image(\"UI Mockup\")  # Get first page as embedded PNG resource\n    - remarkable_image(\"Meeting Notes\", page=2)  # Get second page\n    - remarkable_image(\"/Work/Designs/Wireframe\", background=\"#FFFFFF\")  # White background\n    - remarkable_image(\"Sketch\", background=\"#00000000\")  # Transparent background\n    - remarkable_image(\"Diagram\", output_format=\"svg\")  # Get as embedded SVG resource\n    - remarkable_image(\"Notes\", compatibility=True)  # Return resource URI for retry\n    - remarkable_image(\"Notes\", include_ocr=True)  # Get image with OCR text extraction\n    - remarkable_image(\"Annotated PDF\")  # PDF + annotations composited automatically\n    - remarkable_image(\"Annotated PDF\", render_merged=False)  # Annotation layer only\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "background": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Background"
+            },
+            "output_format": {
+              "default": "png",
+              "title": "Output Format",
+              "type": "string"
+            },
+            "compatibility": {
+              "default": false,
+              "title": "Compatibility",
+              "type": "boolean"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "render_merged": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Render Merged"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_imageArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get reMarkable Page Image",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_export",
+        "description": "\n    <usecase>Export one reMarkable document as a reusable PDF or Markdown file.</usecase>\n    <instructions>\n    Exports a single document without modifying the tablet or its library.\n\n    The generated file is written to a server-managed temporary directory and\n    returned as an MCP ResourceLink. The tool response stays small: it never embeds\n    the PDF/Markdown as base64 and never writes to an arbitrary host path. The\n    resource expires after 15 minutes and may be evicted earlier when more than\n    eight exports are retained. Fetch and save the linked resource for durable use.\n\n    PDF behavior:\n    - `pdf_mode=\"merged\"` (default) preserves complete physical pages, combining\n      mapped PDF underlays and reMarkable annotations.\n    - `pdf_mode=\"annotations\"` exports full-page annotation layers only when the\n      transport provides a document archive.\n    - Pages remain in physical device order. A render failure produces a labeled\n      placeholder at that ordinal and a partial-export warning; pages are not skipped.\n\n    Markdown behavior:\n    - Preserves basic source metadata and fixed source text, typed text, annotation,\n      highlight, and OCR sections.\n    - OCR is opt-in and uses the same configured/cached OCR path as remarkable_read.\n    - Extracted text is kept verbatim; the exporter does not invent headings, lists,\n      links, or page attribution it cannot prove.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents).\n    - output_format: \"pdf\" (default) or \"markdown\".\n    - pdf_mode: PDF-only mode, \"merged\" (default) or \"annotations\".\n    - include_ocr: Enable existing handwriting OCR for Markdown (default: False).\n    </parameters>\n    <examples>\n    - remarkable_export(\"Meeting Notes\")\n    - remarkable_export(\"Research Paper\", output_format=\"pdf\", pdf_mode=\"annotations\")\n    - remarkable_export(\"Journal\", output_format=\"markdown\", include_ocr=True)\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "output_format": {
+              "default": "pdf",
+              "enum": [
+                "pdf",
+                "markdown"
+              ],
+              "title": "Output Format",
+              "type": "string"
+            },
+            "pdf_mode": {
+              "default": "merged",
+              "enum": [
+                "merged",
+                "annotations"
+              ],
+              "title": "Pdf Mode",
+              "type": "string"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_exportArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Export reMarkable Document",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_upload",
+        "description": "\n        <usecase>Upload a PDF or EPUB file to the reMarkable tablet.</usecase>\n        <instructions>\n        Uploads a local file to the tablet. Only PDF and EPUB formats\n        are supported. Works in all three transports:\n        - Cloud: uploaded via the sync protocol; supports parent_folder + document_name\n        - SSH: transferred over SSH, metadata created; supports parent_folder + document_name\n        - USB web: uploaded via POST /upload. The multipart filename carries\n          document_name, parent_folder is ignored, and the tablet web service\n          chooses the destination folder.\n\n        Requires write mode (the default; disabled with --read-only).\n        </instructions>\n        <parameters>\n        - file_path: Absolute path to the local PDF or EPUB file\n        - parent_folder: Destination folder path on tablet (default: root \"/\").\n          Honored in cloud and SSH modes; ignored by the USB web interface.\n        - document_name: Display name on tablet (default: filename without\n          extension). Honored in every mode; USB web uses it as the uploaded filename.\n        - defer_restart: SSH only. When True, skip the xochitl restart that\n          normally makes the upload visible. Use this for every upload in a\n          batch, then call remarkable_refresh() ONCE at the end. Each restart\n          forces a full document-store rescan that briefly destabilises the SSH\n          link, so deferring turns N restarts (and N races) into one. The\n          response sets \"refresh_pending\": true while a refresh is owed. Ignored\n          in cloud/USB modes (no xochitl).\n        </parameters>\n        <examples>\n        - remarkable_upload(\"/tmp/paper.pdf\")\n        - remarkable_upload(\"/tmp/book.epub\", parent_folder=\"/Books\")\n        - remarkable_upload(\"/tmp/report.pdf\", document_name=\"Q4 Report\")\n        - # batch import: defer every upload, refresh once at the end\n          remarkable_upload(\"/tmp/a.pdf\", defer_restart=True)\n          remarkable_upload(\"/tmp/b.pdf\", defer_restart=True)\n          remarkable_refresh()\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "file_path": {
+              "title": "File Path",
+              "type": "string"
+            },
+            "parent_folder": {
+              "default": "/",
+              "title": "Parent Folder",
+              "type": "string"
+            },
+            "document_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Document Name"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "file_path"
+          ],
+          "title": "remarkable_uploadArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_uploadOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_markdown_to_pdf",
+        "description": "\n        <usecase>Render Markdown text as a PDF and upload it to the reMarkable tablet.</usecase>\n        <instructions>\n        Use this when the user wants notes, reports, summaries, or other Markdown\n        content written back to the tablet without first creating a local file.\n        Headings, lists, tables, links, blockquotes, and code blocks are rendered\n        into a paginated A4 PDF. Raw HTML is escaped and image assets are omitted\n        so rendering never reads local files or fetches remote content.\n\n        Works in all three transports:\n        - Cloud: sync upload with parent_folder and document_name\n        - SSH: filesystem upload with parent_folder and document_name\n        - USB web: upload whose multipart filename is document_name + \".pdf\";\n          parent_folder is ignored and the tablet web service chooses the folder.\n\n        Requires write mode (the default; disabled with --read-only).\n        </instructions>\n        <parameters>\n        - markdown: Markdown source text. Must not be empty.\n        - document_name: Display name on the tablet (default: \"Markdown\").\n        - parent_folder: Destination folder (default: root \"/\"). USB web ignores\n          this parameter because its upload endpoint has no folder argument.\n        - defer_restart: SSH only. When True, skip the xochitl restart and call\n          remarkable_refresh() once after the batch. Forwarded exactly like\n          remarkable_upload; ignored in cloud and USB web modes.\n        </parameters>\n        <examples>\n        - remarkable_markdown_to_pdf(\"# Meeting Notes\\n\\n- Follow up with Sam\")\n        - remarkable_markdown_to_pdf(\n            \"# Q4 Report\\n\\nRevenue increased **20%**.\",\n            document_name=\"Q4 Report\",\n            parent_folder=\"/Reports\",\n          )\n        - remarkable_markdown_to_pdf(\n            \"# Batch item\", document_name=\"Item 1\", defer_restart=True\n          )\n          remarkable_refresh()\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "markdown": {
+              "title": "Markdown",
+              "type": "string"
+            },
+            "document_name": {
+              "default": "Markdown",
+              "title": "Document Name",
+              "type": "string"
+            },
+            "parent_folder": {
+              "default": "/",
+              "title": "Parent Folder",
+              "type": "string"
+            },
+            "defer_restart": {
+              "default": false,
+              "title": "Defer Restart",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "markdown"
+          ],
+          "title": "remarkable_markdown_to_pdfArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_markdown_to_pdfOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false
+        }
+      },
+      {
+        "name": "remarkable_canvas",
+        "description": "\n        <usecase>Open a reMarkable page in an interactive canvas viewer.</usecase>\n        <instructions>\n        Renders a notebook or document page and, in clients that support MCP Apps\n        interactive UI, opens a canvas viewer that lets the user page through the\n        document. This is the entry point for the interactive viewer.\n\n        The canvas is currently a read-only viewer (render + page navigation).\n        For plain image extraction without the interactive surface, use\n        remarkable_image instead.\n\n        Clients that do not support MCP Apps still get the rendered page back as\n        an embedded PNG image, so this tool is useful everywhere; it just won't\n        open the interactive panel.\n        </instructions>\n        <parameters>\n        - document: Document name or path (use remarkable_browse to find documents)\n        - page: Page number to open (default: 1, 1-indexed)\n        </parameters>\n        <examples>\n        - remarkable_canvas(\"Meeting Notes\")\n        - remarkable_canvas(\"/Work/Sketches/Wireframe\", page=3)\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_canvasArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://remarkable/canvas",
+            "visibility": [
+              "model",
+              "app"
+            ],
+            "preferredDisplayMode": "inline"
+          },
+          "openai/outputTemplate": "ui://remarkable/canvas"
+        }
+      }
+    ],
+    "prompts": [
+      {
+        "name": "summarize_recent",
+        "title": "Summarize Recent Notes",
+        "description": "Get an AI summary of your recent reMarkable notes",
+        "arguments": []
+      },
+      {
+        "name": "find_notes",
+        "title": "Find Notes About a Topic",
+        "description": "Search your reMarkable tablet for notes on a specific topic",
+        "arguments": [
+          {
+            "name": "topic",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "daily_review",
+        "title": "Daily Notes Review",
+        "description": "Review what you worked on today in your reMarkable tablet",
+        "arguments": []
+      },
+      {
+        "name": "export_document",
+        "title": "Export Document Content",
+        "description": "Extract and format content from a specific document",
+        "arguments": [
+          {
+            "name": "document_name",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "organize_library",
+        "title": "Organize My Library",
+        "description": "Get suggestions for organizing your reMarkable library",
+        "arguments": []
+      },
+      {
+        "name": "meeting_notes",
+        "title": "Extract Meeting Notes",
+        "description": "Find and extract meeting notes from your reMarkable",
+        "arguments": [
+          {
+            "name": "meeting_keyword",
+            "required": false
+          }
+        ]
+      }
+    ]
+  },
+  "local-dir": {
+    "tools": [
+      {
+        "name": "remarkable_read",
+        "description": "\n    <usecase>Read and extract text content from a reMarkable document.</usecase>\n    <instructions>\n    Extracts content from a document with pagination to preserve context window.\n\n    Content types:\n    - \"text\" (default): Full extracted text (PDF/EPUB content + annotations)\n    - \"raw\": Original PDF/EPUB text only (no annotations). Works in every\n      transport, as long as the source file is present (very large PDFs/EPUBs\n      may not be synced to the cloud).\n    - \"annotations\": Only annotations, highlights, and handwritten notes\n\n    Use pagination to read large documents without overwhelming context:\n    - Start with page=1 (default)\n    - Check \"more\" field - if true, there's more content\n    - Use \"next_page\" value to get the next page\n    - \"total_pages\" is the physical document count; \"content_pages\" is the\n      extracted-text count used by page/more/next_page\n    - \"total_pages_known\" reports whether the physical count was available.\n      Raw PDF reads count the downloaded PDF directly. If a raw EPUB archive\n      cannot be read, content still returns with total_pages=null.\n    - If older USB firmware returns only a native PDF, \"text\" returns source\n      text without annotations and \"annotations\" reports that the archive is\n      unavailable instead of trying to parse the PDF as a zip.\n\n    Use grep to search for specific content on the current page.\n\n    OCR uses Google Vision when configured, otherwise Tesseract.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - content_type: \"text\" (full), \"raw\" (PDF/EPUB only), \"annotations\" (notes only)\n    - page: Extracted-content page number (default: 1). Physical document pages\n      are reported separately as total_pages.\n    - grep: Optional regex pattern to filter content (searches current page)\n    - include_ocr: Enable handwriting OCR for annotations (default: False)\n    </parameters>\n    <examples>\n    - remarkable_read(\"Meeting Notes\")  # Get first page of text\n    - remarkable_read(\"Book.pdf\", content_type=\"raw\")  # Get raw PDF text\n    - remarkable_read(\"Notes\", content_type=\"annotations\")  # Only annotations\n    - remarkable_read(\"Report\", page=2)  # Get second page\n    - remarkable_read(\"Manual\", grep=\"installation\")  # Search for keyword\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "content_type": {
+              "default": "text",
+              "enum": [
+                "text",
+                "raw",
+                "annotations"
+              ],
+              "title": "Content Type",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_readArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_readOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Read reMarkable Document",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_browse",
+        "description": "\n    <usecase>Browse your reMarkable library or search for documents.</usecase>\n    <instructions>\n    Three modes:\n    1. Browse mode (default): List contents of a folder\n       - Use path=\"/\" for root folder\n       - Use path=\"/FolderName\" to navigate into folders\n    2. Search mode: Find documents by name\n       - Set query=\"search term\" to search across all documents\n    3. Filter by tags: Find documents with specific tags\n       - Set tags=[\"tag1\", \"tag2\"] to filter by tags\n       - Works in both browse and search modes\n\n    Results include document names, types, modification dates, and tags.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are accessible. Paths are relative to the root path.\n    </instructions>\n    <parameters>\n    - path: Folder path to browse (default: \"/\" for root)\n    - query: Search term to find documents by name (optional, triggers search mode)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_browse()  # List root folder\n    - remarkable_browse(\"/Work\")  # List Work folder\n    - remarkable_browse(query=\"meeting\")  # Search for \"meeting\"\n    - remarkable_browse(tags=[\"important\"])  # Show documents with \"important\" tag\n    - remarkable_browse(query=\"project\", tags=[\"work\"])  # Search with tag filter\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "path": {
+              "default": "/",
+              "title": "Path",
+              "type": "string"
+            },
+            "query": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Query"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "title": "remarkable_browseArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_browseOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Browse reMarkable Library",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_recent",
+        "description": "\n    <usecase>Get your most recently modified documents.</usecase>\n    <instructions>\n    Returns documents sorted by modification date (newest first).\n    Optionally includes a text preview of each document's content.\n\n    Use this to quickly find what you were working on recently.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are included.\n    </instructions>\n    <parameters>\n    - limit: Maximum documents to return (default: 10, max: 50 without preview, 10 with preview)\n    - include_preview: Include first ~200 chars of text content (default: False)\n    </parameters>\n    <examples>\n    - remarkable_recent()  # Last 10 documents\n    - remarkable_recent(limit=5, include_preview=True)  # With content preview\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "limit": {
+              "default": 10,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_preview": {
+              "default": false,
+              "title": "Include Preview",
+              "type": "boolean"
+            }
+          },
+          "title": "remarkable_recentArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_recentOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Recent reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_search",
+        "description": "\n    <usecase>Search across multiple documents and return matching content.</usecase>\n    <instructions>\n    Searches document names for the query, then optionally searches content with grep.\n    Can filter by tags to narrow results.\n    Returns summaries from multiple documents in a single call.\n\n    This is efficient for finding information across your library without\n    making many individual tool calls.\n\n    Limits:\n    - Max 5 documents per search (to keep response size manageable)\n    - Returns first page (~8000 chars) of each matching document\n    - Use grep to filter to relevant sections\n    </instructions>\n    <parameters>\n    - query: Search term for document names\n    - grep: Optional pattern to search within document content\n    - limit: Max documents to return (default: 5, max: 5)\n    - include_ocr: Enable OCR for handwritten content (default: False)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_search(\"meeting\")  # Find docs with \"meeting\" in name\n    - remarkable_search(\"journal\", grep=\"project\")  # Find \"project\" in journals\n    - remarkable_search(\"notes\", include_ocr=True)  # Search with OCR enabled\n    - remarkable_search(\"project\", tags=[\"work\"])  # Find work-tagged projects\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "limit": {
+              "default": 5,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "remarkable_searchArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_searchOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Search reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_status",
+        "description": "\n    <usecase>Check connection status, active transport, and write capabilities.</usecase>\n    <instructions>\n    Returns authentication status, the active transport (cloud, local-dir, ssh, or\n    usb-web), the document count, and a capability matrix describing what each\n    transport can do. Use this to verify your connection, choose a transport, or\n    troubleshoot.\n\n    Capability notes:\n    - Export is available in every transport and creates only a bounded temporary\n      local resource; it never modifies the tablet.\n    - Cloud (default): full read/render/export/upload/mkdir/move/rename/delete \u2014 no device\n      needed, works from anywhere your token is valid.\n    - SSH: full capabilities over a local/USB connection to the tablet.\n    - USB web: read, render, export, and upload (to root) only \u2014 the tablet's USB web\n      interface firmware exposes no folder/move/rename/delete endpoints. For full\n      write parity over a USB cable, use SSH mode pointed at the USB IP.\n    - Local directory: fully offline read/render/export access to the desktop app's sync\n      cache. Strictly read-only to avoid corrupting app-managed state.\n    Write tools (upload/mkdir/move/rename/delete) are enabled by default; run\n    with --read-only (or REMARKABLE_READ_ONLY=1) to expose a read-only server.\n    </instructions>\n    <examples>\n    - remarkable_status()\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {},
+          "title": "remarkable_statusArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_statusOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Check reMarkable Connection",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_image",
+        "description": "\n    <usecase>Get an image of a specific page from a reMarkable document.</usecase>\n    <instructions>\n    Renders a notebook or document page as an image (PNG or SVG). This is useful for:\n    - Viewing hand-drawn diagrams, sketches, or UI mockups\n    - Getting visual context that text extraction might miss\n    - Implementing designs based on hand-drawn wireframes\n    - SVG format for scalable vector graphics that can be edited\n\n    ## Merged PDF + Annotation Rendering\n\n    PNG pages backed by an imported PDF automatically composite the PDF page with\n    its reMarkable annotations. Set render_merged=False for an annotation-only\n    render, or True to explicitly request compositing. SVG remains annotation-only.\n\n    ## Response Formats\n\n    By default, images are returned as embedded resources (EmbeddedResource) which\n    include the full image data inline:\n    - PNG: Returned as BlobResourceContents with base64-encoded data\n    - SVG: Returned as TextResourceContents with SVG markup\n\n    If your client doesn't support embedded resources in tool responses, set\n    compatibility=True to receive a JSON response with just the resource URI.\n    The client can then fetch the resource separately.\n\n    Optionally, enable include_ocr=True to extract text from the image using OCR.\n    Google Vision is used when configured; otherwise OCR runs locally with Tesseract.\n\n    Note: Native notebooks retain their existing stroke rendering behavior.\n    If older USB firmware returns only a native PDF export, PNG remains\n    available; SVG and explicit annotation-only rendering require an rmdoc\n    archive and return a clear error when it is unavailable.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - page: Page number (default: 1, 1-indexed)\n    - background: Background color as hex code. Supports RGB (#RRGGBB) or RGBA (#RRGGBBAA).\n      Default is \"#FBFBFB\" (reMarkable paper color), or set REMARKABLE_BACKGROUND_COLOR\n      env var to override. Use \"#00000000\" for transparent.\n    - output_format: Output format - \"png\" (default) or \"svg\" for vector graphics\n    - compatibility: If True, return resource URI in JSON instead of embedded resource.\n      Use this if your client doesn't support embedded resources in tool responses.\n    - include_ocr: Enable OCR text extraction from the image (default: False).\n    - render_merged: PDF compositing mode for PNG: None (default) automatically\n      merges PDF-backed pages, True explicitly requests merging, and False returns\n      the annotation-only layer. SVG output remains annotation-only.\n    </parameters>\n    <examples>\n    - remarkable_image(\"UI Mockup\")  # Get first page as embedded PNG resource\n    - remarkable_image(\"Meeting Notes\", page=2)  # Get second page\n    - remarkable_image(\"/Work/Designs/Wireframe\", background=\"#FFFFFF\")  # White background\n    - remarkable_image(\"Sketch\", background=\"#00000000\")  # Transparent background\n    - remarkable_image(\"Diagram\", output_format=\"svg\")  # Get as embedded SVG resource\n    - remarkable_image(\"Notes\", compatibility=True)  # Return resource URI for retry\n    - remarkable_image(\"Notes\", include_ocr=True)  # Get image with OCR text extraction\n    - remarkable_image(\"Annotated PDF\")  # PDF + annotations composited automatically\n    - remarkable_image(\"Annotated PDF\", render_merged=False)  # Annotation layer only\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "background": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Background"
+            },
+            "output_format": {
+              "default": "png",
+              "title": "Output Format",
+              "type": "string"
+            },
+            "compatibility": {
+              "default": false,
+              "title": "Compatibility",
+              "type": "boolean"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "render_merged": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Render Merged"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_imageArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get reMarkable Page Image",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_export",
+        "description": "\n    <usecase>Export one reMarkable document as a reusable PDF or Markdown file.</usecase>\n    <instructions>\n    Exports a single document without modifying the tablet or its library.\n\n    The generated file is written to a server-managed temporary directory and\n    returned as an MCP ResourceLink. The tool response stays small: it never embeds\n    the PDF/Markdown as base64 and never writes to an arbitrary host path. The\n    resource expires after 15 minutes and may be evicted earlier when more than\n    eight exports are retained. Fetch and save the linked resource for durable use.\n\n    PDF behavior:\n    - `pdf_mode=\"merged\"` (default) preserves complete physical pages, combining\n      mapped PDF underlays and reMarkable annotations.\n    - `pdf_mode=\"annotations\"` exports full-page annotation layers only when the\n      transport provides a document archive.\n    - Pages remain in physical device order. A render failure produces a labeled\n      placeholder at that ordinal and a partial-export warning; pages are not skipped.\n\n    Markdown behavior:\n    - Preserves basic source metadata and fixed source text, typed text, annotation,\n      highlight, and OCR sections.\n    - OCR is opt-in and uses the same configured/cached OCR path as remarkable_read.\n    - Extracted text is kept verbatim; the exporter does not invent headings, lists,\n      links, or page attribution it cannot prove.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents).\n    - output_format: \"pdf\" (default) or \"markdown\".\n    - pdf_mode: PDF-only mode, \"merged\" (default) or \"annotations\".\n    - include_ocr: Enable existing handwriting OCR for Markdown (default: False).\n    </parameters>\n    <examples>\n    - remarkable_export(\"Meeting Notes\")\n    - remarkable_export(\"Research Paper\", output_format=\"pdf\", pdf_mode=\"annotations\")\n    - remarkable_export(\"Journal\", output_format=\"markdown\", include_ocr=True)\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "output_format": {
+              "default": "pdf",
+              "enum": [
+                "pdf",
+                "markdown"
+              ],
+              "title": "Output Format",
+              "type": "string"
+            },
+            "pdf_mode": {
+              "default": "merged",
+              "enum": [
+                "merged",
+                "annotations"
+              ],
+              "title": "Pdf Mode",
+              "type": "string"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_exportArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Export reMarkable Document",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_canvas",
+        "description": "\n        <usecase>Open a reMarkable page in an interactive canvas viewer.</usecase>\n        <instructions>\n        Renders a notebook or document page and, in clients that support MCP Apps\n        interactive UI, opens a canvas viewer that lets the user page through the\n        document. This is the entry point for the interactive viewer.\n\n        The canvas is currently a read-only viewer (render + page navigation).\n        For plain image extraction without the interactive surface, use\n        remarkable_image instead.\n\n        Clients that do not support MCP Apps still get the rendered page back as\n        an embedded PNG image, so this tool is useful everywhere; it just won't\n        open the interactive panel.\n        </instructions>\n        <parameters>\n        - document: Document name or path (use remarkable_browse to find documents)\n        - page: Page number to open (default: 1, 1-indexed)\n        </parameters>\n        <examples>\n        - remarkable_canvas(\"Meeting Notes\")\n        - remarkable_canvas(\"/Work/Sketches/Wireframe\", page=3)\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_canvasArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://remarkable/canvas",
+            "visibility": [
+              "model",
+              "app"
+            ],
+            "preferredDisplayMode": "inline"
+          },
+          "openai/outputTemplate": "ui://remarkable/canvas"
+        }
+      }
+    ],
+    "prompts": [
+      {
+        "name": "summarize_recent",
+        "title": "Summarize Recent Notes",
+        "description": "Get an AI summary of your recent reMarkable notes",
+        "arguments": []
+      },
+      {
+        "name": "find_notes",
+        "title": "Find Notes About a Topic",
+        "description": "Search your reMarkable tablet for notes on a specific topic",
+        "arguments": [
+          {
+            "name": "topic",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "daily_review",
+        "title": "Daily Notes Review",
+        "description": "Review what you worked on today in your reMarkable tablet",
+        "arguments": []
+      },
+      {
+        "name": "export_document",
+        "title": "Export Document Content",
+        "description": "Extract and format content from a specific document",
+        "arguments": [
+          {
+            "name": "document_name",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "organize_library",
+        "title": "Organize My Library",
+        "description": "Get suggestions for organizing your reMarkable library",
+        "arguments": []
+      },
+      {
+        "name": "meeting_notes",
+        "title": "Extract Meeting Notes",
+        "description": "Find and extract meeting notes from your reMarkable",
+        "arguments": [
+          {
+            "name": "meeting_keyword",
+            "required": false
+          }
+        ]
+      }
+    ]
+  },
+  "read-only": {
+    "tools": [
+      {
+        "name": "remarkable_read",
+        "description": "\n    <usecase>Read and extract text content from a reMarkable document.</usecase>\n    <instructions>\n    Extracts content from a document with pagination to preserve context window.\n\n    Content types:\n    - \"text\" (default): Full extracted text (PDF/EPUB content + annotations)\n    - \"raw\": Original PDF/EPUB text only (no annotations). Works in every\n      transport, as long as the source file is present (very large PDFs/EPUBs\n      may not be synced to the cloud).\n    - \"annotations\": Only annotations, highlights, and handwritten notes\n\n    Use pagination to read large documents without overwhelming context:\n    - Start with page=1 (default)\n    - Check \"more\" field - if true, there's more content\n    - Use \"next_page\" value to get the next page\n    - \"total_pages\" is the physical document count; \"content_pages\" is the\n      extracted-text count used by page/more/next_page\n    - \"total_pages_known\" reports whether the physical count was available.\n      Raw PDF reads count the downloaded PDF directly. If a raw EPUB archive\n      cannot be read, content still returns with total_pages=null.\n    - If older USB firmware returns only a native PDF, \"text\" returns source\n      text without annotations and \"annotations\" reports that the archive is\n      unavailable instead of trying to parse the PDF as a zip.\n\n    Use grep to search for specific content on the current page.\n\n    OCR uses Google Vision when configured, otherwise Tesseract.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - content_type: \"text\" (full), \"raw\" (PDF/EPUB only), \"annotations\" (notes only)\n    - page: Extracted-content page number (default: 1). Physical document pages\n      are reported separately as total_pages.\n    - grep: Optional regex pattern to filter content (searches current page)\n    - include_ocr: Enable handwriting OCR for annotations (default: False)\n    </parameters>\n    <examples>\n    - remarkable_read(\"Meeting Notes\")  # Get first page of text\n    - remarkable_read(\"Book.pdf\", content_type=\"raw\")  # Get raw PDF text\n    - remarkable_read(\"Notes\", content_type=\"annotations\")  # Only annotations\n    - remarkable_read(\"Report\", page=2)  # Get second page\n    - remarkable_read(\"Manual\", grep=\"installation\")  # Search for keyword\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "content_type": {
+              "default": "text",
+              "enum": [
+                "text",
+                "raw",
+                "annotations"
+              ],
+              "title": "Content Type",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_readArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_readOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Read reMarkable Document",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_browse",
+        "description": "\n    <usecase>Browse your reMarkable library or search for documents.</usecase>\n    <instructions>\n    Three modes:\n    1. Browse mode (default): List contents of a folder\n       - Use path=\"/\" for root folder\n       - Use path=\"/FolderName\" to navigate into folders\n    2. Search mode: Find documents by name\n       - Set query=\"search term\" to search across all documents\n    3. Filter by tags: Find documents with specific tags\n       - Set tags=[\"tag1\", \"tag2\"] to filter by tags\n       - Works in both browse and search modes\n\n    Results include document names, types, modification dates, and tags.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are accessible. Paths are relative to the root path.\n    </instructions>\n    <parameters>\n    - path: Folder path to browse (default: \"/\" for root)\n    - query: Search term to find documents by name (optional, triggers search mode)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_browse()  # List root folder\n    - remarkable_browse(\"/Work\")  # List Work folder\n    - remarkable_browse(query=\"meeting\")  # Search for \"meeting\"\n    - remarkable_browse(tags=[\"important\"])  # Show documents with \"important\" tag\n    - remarkable_browse(query=\"project\", tags=[\"work\"])  # Search with tag filter\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "path": {
+              "default": "/",
+              "title": "Path",
+              "type": "string"
+            },
+            "query": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Query"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "title": "remarkable_browseArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_browseOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Browse reMarkable Library",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_recent",
+        "description": "\n    <usecase>Get your most recently modified documents.</usecase>\n    <instructions>\n    Returns documents sorted by modification date (newest first).\n    Optionally includes a text preview of each document's content.\n\n    Use this to quickly find what you were working on recently.\n\n    Note: If REMARKABLE_ROOT_PATH is configured, only documents within that\n    folder are included.\n    </instructions>\n    <parameters>\n    - limit: Maximum documents to return (default: 10, max: 50 without preview, 10 with preview)\n    - include_preview: Include first ~200 chars of text content (default: False)\n    </parameters>\n    <examples>\n    - remarkable_recent()  # Last 10 documents\n    - remarkable_recent(limit=5, include_preview=True)  # With content preview\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "limit": {
+              "default": 10,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_preview": {
+              "default": false,
+              "title": "Include Preview",
+              "type": "boolean"
+            }
+          },
+          "title": "remarkable_recentArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_recentOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Recent reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_search",
+        "description": "\n    <usecase>Search across multiple documents and return matching content.</usecase>\n    <instructions>\n    Searches document names for the query, then optionally searches content with grep.\n    Can filter by tags to narrow results.\n    Returns summaries from multiple documents in a single call.\n\n    This is efficient for finding information across your library without\n    making many individual tool calls.\n\n    Limits:\n    - Max 5 documents per search (to keep response size manageable)\n    - Returns first page (~8000 chars) of each matching document\n    - Use grep to filter to relevant sections\n    </instructions>\n    <parameters>\n    - query: Search term for document names\n    - grep: Optional pattern to search within document content\n    - limit: Max documents to return (default: 5, max: 5)\n    - include_ocr: Enable OCR for handwritten content (default: False)\n    - tags: List of tags to filter documents (optional, case-insensitive)\n    </parameters>\n    <examples>\n    - remarkable_search(\"meeting\")  # Find docs with \"meeting\" in name\n    - remarkable_search(\"journal\", grep=\"project\")  # Find \"project\" in journals\n    - remarkable_search(\"notes\", include_ocr=True)  # Search with OCR enabled\n    - remarkable_search(\"project\", tags=[\"work\"])  # Find work-tagged projects\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "grep": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grep"
+            },
+            "limit": {
+              "default": 5,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tags"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "remarkable_searchArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_searchOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Search reMarkable Documents",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_status",
+        "description": "\n    <usecase>Check connection status, active transport, and write capabilities.</usecase>\n    <instructions>\n    Returns authentication status, the active transport (cloud, local-dir, ssh, or\n    usb-web), the document count, and a capability matrix describing what each\n    transport can do. Use this to verify your connection, choose a transport, or\n    troubleshoot.\n\n    Capability notes:\n    - Export is available in every transport and creates only a bounded temporary\n      local resource; it never modifies the tablet.\n    - Cloud (default): full read/render/export/upload/mkdir/move/rename/delete \u2014 no device\n      needed, works from anywhere your token is valid.\n    - SSH: full capabilities over a local/USB connection to the tablet.\n    - USB web: read, render, export, and upload (to root) only \u2014 the tablet's USB web\n      interface firmware exposes no folder/move/rename/delete endpoints. For full\n      write parity over a USB cable, use SSH mode pointed at the USB IP.\n    - Local directory: fully offline read/render/export access to the desktop app's sync\n      cache. Strictly read-only to avoid corrupting app-managed state.\n    Write tools (upload/mkdir/move/rename/delete) are enabled by default; run\n    with --read-only (or REMARKABLE_READ_ONLY=1) to expose a read-only server.\n    </instructions>\n    <examples>\n    - remarkable_status()\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {},
+          "title": "remarkable_statusArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "title": "Result",
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "remarkable_statusOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Check reMarkable Connection",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_image",
+        "description": "\n    <usecase>Get an image of a specific page from a reMarkable document.</usecase>\n    <instructions>\n    Renders a notebook or document page as an image (PNG or SVG). This is useful for:\n    - Viewing hand-drawn diagrams, sketches, or UI mockups\n    - Getting visual context that text extraction might miss\n    - Implementing designs based on hand-drawn wireframes\n    - SVG format for scalable vector graphics that can be edited\n\n    ## Merged PDF + Annotation Rendering\n\n    PNG pages backed by an imported PDF automatically composite the PDF page with\n    its reMarkable annotations. Set render_merged=False for an annotation-only\n    render, or True to explicitly request compositing. SVG remains annotation-only.\n\n    ## Response Formats\n\n    By default, images are returned as embedded resources (EmbeddedResource) which\n    include the full image data inline:\n    - PNG: Returned as BlobResourceContents with base64-encoded data\n    - SVG: Returned as TextResourceContents with SVG markup\n\n    If your client doesn't support embedded resources in tool responses, set\n    compatibility=True to receive a JSON response with just the resource URI.\n    The client can then fetch the resource separately.\n\n    Optionally, enable include_ocr=True to extract text from the image using OCR.\n    Google Vision is used when configured; otherwise OCR runs locally with Tesseract.\n\n    Note: Native notebooks retain their existing stroke rendering behavior.\n    If older USB firmware returns only a native PDF export, PNG remains\n    available; SVG and explicit annotation-only rendering require an rmdoc\n    archive and return a clear error when it is unavailable.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents)\n    - page: Page number (default: 1, 1-indexed)\n    - background: Background color as hex code. Supports RGB (#RRGGBB) or RGBA (#RRGGBBAA).\n      Default is \"#FBFBFB\" (reMarkable paper color), or set REMARKABLE_BACKGROUND_COLOR\n      env var to override. Use \"#00000000\" for transparent.\n    - output_format: Output format - \"png\" (default) or \"svg\" for vector graphics\n    - compatibility: If True, return resource URI in JSON instead of embedded resource.\n      Use this if your client doesn't support embedded resources in tool responses.\n    - include_ocr: Enable OCR text extraction from the image (default: False).\n    - render_merged: PDF compositing mode for PNG: None (default) automatically\n      merges PDF-backed pages, True explicitly requests merging, and False returns\n      the annotation-only layer. SVG output remains annotation-only.\n    </parameters>\n    <examples>\n    - remarkable_image(\"UI Mockup\")  # Get first page as embedded PNG resource\n    - remarkable_image(\"Meeting Notes\", page=2)  # Get second page\n    - remarkable_image(\"/Work/Designs/Wireframe\", background=\"#FFFFFF\")  # White background\n    - remarkable_image(\"Sketch\", background=\"#00000000\")  # Transparent background\n    - remarkable_image(\"Diagram\", output_format=\"svg\")  # Get as embedded SVG resource\n    - remarkable_image(\"Notes\", compatibility=True)  # Return resource URI for retry\n    - remarkable_image(\"Notes\", include_ocr=True)  # Get image with OCR text extraction\n    - remarkable_image(\"Annotated PDF\")  # PDF + annotations composited automatically\n    - remarkable_image(\"Annotated PDF\", render_merged=False)  # Annotation layer only\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "background": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Background"
+            },
+            "output_format": {
+              "default": "png",
+              "title": "Output Format",
+              "type": "string"
+            },
+            "compatibility": {
+              "default": false,
+              "title": "Compatibility",
+              "type": "boolean"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            },
+            "render_merged": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Render Merged"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_imageArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get reMarkable Page Image",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_export",
+        "description": "\n    <usecase>Export one reMarkable document as a reusable PDF or Markdown file.</usecase>\n    <instructions>\n    Exports a single document without modifying the tablet or its library.\n\n    The generated file is written to a server-managed temporary directory and\n    returned as an MCP ResourceLink. The tool response stays small: it never embeds\n    the PDF/Markdown as base64 and never writes to an arbitrary host path. The\n    resource expires after 15 minutes and may be evicted earlier when more than\n    eight exports are retained. Fetch and save the linked resource for durable use.\n\n    PDF behavior:\n    - `pdf_mode=\"merged\"` (default) preserves complete physical pages, combining\n      mapped PDF underlays and reMarkable annotations.\n    - `pdf_mode=\"annotations\"` exports full-page annotation layers only when the\n      transport provides a document archive.\n    - Pages remain in physical device order. A render failure produces a labeled\n      placeholder at that ordinal and a partial-export warning; pages are not skipped.\n\n    Markdown behavior:\n    - Preserves basic source metadata and fixed source text, typed text, annotation,\n      highlight, and OCR sections.\n    - OCR is opt-in and uses the same configured/cached OCR path as remarkable_read.\n    - Extracted text is kept verbatim; the exporter does not invent headings, lists,\n      links, or page attribution it cannot prove.\n    </instructions>\n    <parameters>\n    - document: Document name or path (use remarkable_browse to find documents).\n    - output_format: \"pdf\" (default) or \"markdown\".\n    - pdf_mode: PDF-only mode, \"merged\" (default) or \"annotations\".\n    - include_ocr: Enable existing handwriting OCR for Markdown (default: False).\n    </parameters>\n    <examples>\n    - remarkable_export(\"Meeting Notes\")\n    - remarkable_export(\"Research Paper\", output_format=\"pdf\", pdf_mode=\"annotations\")\n    - remarkable_export(\"Journal\", output_format=\"markdown\", include_ocr=True)\n    </examples>\n    ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "output_format": {
+              "default": "pdf",
+              "enum": [
+                "pdf",
+                "markdown"
+              ],
+              "title": "Output Format",
+              "type": "string"
+            },
+            "pdf_mode": {
+              "default": "merged",
+              "enum": [
+                "merged",
+                "annotations"
+              ],
+              "title": "Pdf Mode",
+              "type": "string"
+            },
+            "include_ocr": {
+              "default": false,
+              "title": "Include Ocr",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_exportArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Export reMarkable Document",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "remarkable_canvas",
+        "description": "\n        <usecase>Open a reMarkable page in an interactive canvas viewer.</usecase>\n        <instructions>\n        Renders a notebook or document page and, in clients that support MCP Apps\n        interactive UI, opens a canvas viewer that lets the user page through the\n        document. This is the entry point for the interactive viewer.\n\n        The canvas is currently a read-only viewer (render + page navigation).\n        For plain image extraction without the interactive surface, use\n        remarkable_image instead.\n\n        Clients that do not support MCP Apps still get the rendered page back as\n        an embedded PNG image, so this tool is useful everywhere; it just won't\n        open the interactive panel.\n        </instructions>\n        <parameters>\n        - document: Document name or path (use remarkable_browse to find documents)\n        - page: Page number to open (default: 1, 1-indexed)\n        </parameters>\n        <examples>\n        - remarkable_canvas(\"Meeting Notes\")\n        - remarkable_canvas(\"/Work/Sketches/Wireframe\", page=3)\n        </examples>\n        ",
+        "inputSchema": {
+          "properties": {
+            "document": {
+              "title": "Document",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "document"
+          ],
+          "title": "remarkable_canvasArguments",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://remarkable/canvas",
+            "visibility": [
+              "model",
+              "app"
+            ],
+            "preferredDisplayMode": "inline"
+          },
+          "openai/outputTemplate": "ui://remarkable/canvas"
+        }
+      }
+    ],
+    "prompts": [
+      {
+        "name": "summarize_recent",
+        "title": "Summarize Recent Notes",
+        "description": "Get an AI summary of your recent reMarkable notes",
+        "arguments": []
+      },
+      {
+        "name": "find_notes",
+        "title": "Find Notes About a Topic",
+        "description": "Search your reMarkable tablet for notes on a specific topic",
+        "arguments": [
+          {
+            "name": "topic",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "daily_review",
+        "title": "Daily Notes Review",
+        "description": "Review what you worked on today in your reMarkable tablet",
+        "arguments": []
+      },
+      {
+        "name": "export_document",
+        "title": "Export Document Content",
+        "description": "Extract and format content from a specific document",
+        "arguments": [
+          {
+            "name": "document_name",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "organize_library",
+        "title": "Organize My Library",
+        "description": "Get suggestions for organizing your reMarkable library",
+        "arguments": []
+      },
+      {
+        "name": "meeting_notes",
+        "title": "Extract Meeting Notes",
+        "description": "Find and extract meeting notes from your reMarkable",
+        "arguments": [
+          {
+            "name": "meeting_keyword",
+            "required": false
+          }
+        ]
+      }
+    ]
+  }
+}
