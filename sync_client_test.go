@@ -205,6 +205,17 @@ func TestNativeCloudLifecycleAndCache(t *testing.T) {
 	ctx := context.Background()
 	folder, e := b.Mkdir(ctx, "Folder", "")
 	requireSyncOK(t, e)
+	f.mu.Lock()
+	rootLines := strings.Split(strings.TrimSpace(string(f.blobs[f.root])), "\n")
+	entry := strings.Split(rootLines[2], ":")
+	index := []byte(fmt.Sprintf("4\n0:%s:%s:%s\n%s", folder.ID, entry[3], entry[4], strings.TrimPrefix(string(f.blobs[entry[0]]), "3\n")))
+	entry[0] = fixtureSHA(index)
+	f.blobs[entry[0]] = index
+	rootLines[2] = strings.Join(entry, ":")
+	root := []byte(strings.Join(rootLines, "\n") + "\n")
+	f.root = fixtureSHA(root)
+	f.blobs[f.root] = root
+	f.mu.Unlock()
 	d, e := b.Upload(ctx, []byte("fixture epub bytes"), ".EPUB", folder.ID, "Book")
 	requireSyncOK(t, e)
 	docs, e := b.List(ctx)

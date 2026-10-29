@@ -26,13 +26,7 @@ func DocumentPageCount(files map[string][]byte) (int, error) {
 	if e != nil {
 		return 0, e
 	}
-	if len(a.order) > 0 {
-		return len(a.order), nil
-	}
-	if len(a.epub) > 0 {
-		return PDFPageCount(a.epub)
-	}
-	return 0, nil
+	return len(a.order), nil
 }
 func DocumentFileType(files map[string][]byte) string {
 	for n, b := range files {

@@ -182,9 +182,6 @@ throughput guarantee, cold-start test, or 24-hour soak.
   hints and error prose are not compared. Pixel-identical parity is not claimed.
 - Arbitrary malformed EPUB HTML can still normalize differently between the
   native and Python parsers.
-- Without tablet page sidecars, `DocumentPageCount` can report EPUB reflow pages
-  instead of an unknown physical count. Extraction correctly reports unknown.
-  This known inconsistency still needs a fix.
 - PDF archive exports replay drawing operations, retaining selectable source
   text and vectors, but do not copy interactive source annotations, outlines,
   or actions. They are exports, not byte-preserving copies of the source PDF.

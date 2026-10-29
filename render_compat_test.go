@@ -95,9 +95,13 @@ func TestNativeEPUBManifestAndTextBoundaries(t *testing.T) {
 	if err != nil || out.SourceText != "" || len(out.Warnings) == 0 {
 		t.Fatalf("invalid EPUB: %+v %v", out, err)
 	}
-	out, err = ExtractDocument(map[string][]byte{"d.epub": compatibilityEPUB(t)}, false)
+	book := map[string][]byte{"d.epub": compatibilityEPUB(t)}
+	out, err = ExtractDocument(book, false)
 	if err != nil || out.PageCount != 0 {
 		t.Fatalf("EPUB must not invent physical pages: %+v %v", out, err)
+	}
+	if n, err := DocumentPageCount(book); err != nil || n != 0 {
+		t.Fatalf("EPUB page count must not use reflow pages: %d %v", n, err)
 	}
 }
 

@@ -233,10 +233,15 @@ func nativeParse(b []byte) ([]nativeEntry, error) {
 	}
 	out := []nativeEntry{}
 	for i, line := range lines[1:] {
-		if lines[0] == "4" && i == 0 && strings.HasPrefix(line, "0:.:") {
+		p := strings.Split(line, ":")
+		if lines[0] == "4" && i == 0 && len(p) == 4 && p[0] == "0" && p[1] != "" {
+			count, countErr := strconv.ParseInt(p[2], 10, 64)
+			size, sizeErr := strconv.ParseInt(p[3], 10, 64)
+			if countErr != nil || sizeErr != nil || count < 0 || size < 0 {
+				return nil, errors.New("invalid sync index header")
+			}
 			continue
 		}
-		p := strings.Split(line, ":")
 		if len(p) != 5 || !nativeValidHash(p[0]) || p[2] == "" {
 			return nil, errors.New("invalid sync index entry")
 		}
