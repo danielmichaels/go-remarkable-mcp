@@ -11,7 +11,8 @@ wake, and restart validation is still needed. Start with read-only access and
 keep a backup before enabling writes. This project is not affiliated with
 reMarkable AS. Publishing this source does not install or configure an MCP client.
 
-Licensed under [AGPL-3.0](LICENSE), with retained upstream MIT and font notices.
+Project code is licensed under [Apache-2.0](LICENSE). Dependencies retain their
+own licenses, including MuPDF's AGPL/commercial terms; see licensing below.
 
 ## Implemented
 
@@ -201,15 +202,19 @@ throughput guarantee, cold-start test, or 24-hour soak.
 
 ## Distribution and licensing
 
-The project is distributed under [AGPL-3.0](LICENSE). The Python project's MIT
+Project code is licensed under [Apache-2.0](LICENSE). This does not relicense
+third-party code or assets. The Python project's MIT
 notice is in `THIRD_PARTY_LICENSE.txt`; native notices
 are in `render_licenses.go`. go-rmscene, fpdf, and goldmark use MIT licenses.
 Bundled Droid Sans Fallback is Apache-2.0 and Noto Naskh Arabic is SIL OFL-1.1;
 their full notices are in `render_fonts/` and embedded in the notice string.
 
 **go-fitz/MuPDF requires AGPL compliance or a suitable commercial license.**
-The pinned Go modules identify the dependency sources, and `LICENSE` contains the
-complete AGPL text. Binary distributors must include the applicable notices and
-licenses and meet corresponding-source obligations. A commercial MuPDF license
-does not relicense this project's code or other dependencies. This repository
+The pinned Go modules identify the dependency sources, and `MUPDF-LICENSE`
+contains the complete AGPL text. The linked server is not Apache-only:
+distributing or serving it with AGPL MuPDF requires compliance with the applicable
+AGPL terms, including corresponding-source obligations. Binary distributors must
+include the applicable notices and licenses. A suitable commercial license for
+MuPDF is an alternative to its AGPL terms, not a replacement for the licenses of
+this project's code or other dependencies. This repository
 currently distributes source; it does not publish prebuilt release binaries.

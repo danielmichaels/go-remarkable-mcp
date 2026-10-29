@@ -1,0 +1,12 @@
+go-remarkable-mcp
+Copyright 2026 Daniel Michaels
+
+Project code is licensed under the Apache License, Version 2.0.
+
+This project includes material derived from remarkable-mcp by Sam Morrow,
+licensed under MIT. See THIRD_PARTY_LICENSE.txt.
+
+Dependencies and fonts retain their original licenses. See render_licenses.go
+and render_fonts/ for notices. MuPDF/go-fitz is subject to AGPL or commercial
+terms; see MUPDF-LICENSE. Apache-2.0 does not remove those requirements from
+the linked server.
